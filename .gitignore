@@ -1,0 +1,10 @@
+
+.vs/
+bin/
+obj/
+dist/
+packages-dist/
+*/TestResults/
+.sonarqube/
+*.user
+* - Copy

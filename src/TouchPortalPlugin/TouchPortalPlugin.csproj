@@ -1,15 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" /> -->
   <PropertyGroup>
     <!-- <ApplicationVersion>1.0.0.%2a</ApplicationVersion> -->
-    <!-- <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration> -->
-    <!-- <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform> -->
     <ProjectGuid>{6405CA14-031F-4FEE-89AE-A1320BDDEB40}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>TJoy</RootNamespace>
     <AssemblyName>TJoyTouchPortalPlugin</AssemblyName>
-    <!-- <TargetFrameworkVersion>v4.8</TargetFrameworkVersion> -->
     <TargetFramework>net5.0</TargetFramework>
     <!-- <FileAlignment>512</FileAlignment> -->
     <!-- <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
@@ -17,6 +13,23 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <ApplicationIcon>TJoy.ico</ApplicationIcon>
+    <Copyright>Maxim Paperno</Copyright>
+    <PackageLicenseExpression></PackageLicenseExpression>
+    <PackageIcon>vJoy-icon.png</PackageIcon>
+    <PackageIconUrl />
+    <Authors>Maxim Paperno</Authors>
+    <Company />
+    <Product>TJoy-TouchPortal-Plugin</Product>
+    <PackageProjectUrl>https://github.com/mpaperno/TJoy</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mpaperno/TJoy</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <Version>0.9.0</Version>
+    <StartupObject>TJoy.TouchPortalPlugin.Program</StartupObject>
+  </PropertyGroup>
+  
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
@@ -75,6 +88,11 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
+    <None Include="..\lib\vJoy\x64\vJoyInterface.dll">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -83,32 +101,12 @@
     </Content>
   </ItemGroup>
 
-  <!-- <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-  </ItemGroup> -->
-
-  <ItemGroup>
-    <Reference Include="vJoyInterfaceWrap, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\lib\vJoy\x64\vJoyInterfaceWrap.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-      <EmbedInteropTypes>false</EmbedInteropTypes>
-      <Private>true</Private>
-    </Reference>
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
-    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.17.178" />
+    <!-- <PackageReference Include="Nefarius.ViGEm.Client" Version="1.17.178" /> -->
     <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="3.3.0" />
     <PackageReference Include="Serilog.Sinks.Async" Version="1.5.0" />
@@ -120,32 +118,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="App.config" />
+    <ProjectReference Include="..\TouchPortalSDK\TouchPortalSDK.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="vJoyInterfaceWrap, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\lib\vJoy\x64\vJoyInterfaceWrap.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\TouchPortalSDK\TouchPortalSDK.csproj" />
-  </ItemGroup>
-  <!-- <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" /> -->
-
-  <PropertyGroup>
-    <PostBuildEvent>copy lib\vJoy\x64\vJoyInterface.dll  .</PostBuildEvent>
-    <ApplicationIcon>TJoy.ico</ApplicationIcon>
-    <Copyright>Maxim Paperno</Copyright>
-    <PackageLicenseExpression></PackageLicenseExpression>
-    <PackageIcon>vJoy-icon.png</PackageIcon>
-    <PackageIconUrl />
-    <Authors>Maxim Paperno</Authors>
-    <Company />
-    <Product>TJoy-TouchPortal-Plugin</Product>
-    <PackageProjectUrl>https://github.com/mpaperno/TJoy</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/mpaperno/TJoy</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>0.9.0</Version>
-  </PropertyGroup>
 </Project>
