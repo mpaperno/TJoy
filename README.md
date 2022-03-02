@@ -1,3 +1,9 @@
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/mpaperno/TJoy?include_prereleases)](https://github.com/mpaperno/TJoy/releases)
+[![Downloads](https://img.shields.io/github/downloads/mpaperno/TJoy/total.svg)](https://github.com/mpaperno/TJoy/releases)
+[![Downloads of latest release](https://img.shields.io/github/downloads/mpaperno/TJoy/latest/total)](https://github.com/mpaperno/TJoy/releases/latest)
+[![License](https://img.shields.io/badge/license-GPL3-blue.svg)](LICENSE)
+
+
 # TJoy - Touch Joystick Virtual Controller Project
 
 ## TJoy Touch Portal Plugin
@@ -27,7 +33,7 @@ Your testing and feedback is important, please help!
 
 ## Examples
 
-We need some... for now check what's in the [assets](https://github.com/mpaperno/LGKeys-TouchPortal-Plugin/tree/main/assets) folder in this repo.
+We need some... for now check what's in the [assets](https://github.com/mpaperno/TJoy/tree/main/assets) folder in this repo.
 
 
 ## Setup
