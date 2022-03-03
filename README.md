@@ -41,11 +41,12 @@ We need some... for now check what's in the [assets](https://github.com/mpaperno
 ### Requirements:
 * [Touch Portal](https://www.touch-portal.com) for Windows, v3.0.6 or newer.
 * **`vJoy` device driver**. You **must** install this separately otherwise the plugin can do nothing useful.
-  Currently the latest signed version I can find is [v2.2.1.1](https://github.com/njz3/vJoy/releases) from here: https://github.com/njz3/vJoy
+  * Currently the latest signed version I can find is [v2.2.1.1](https://github.com/njz3/vJoy/releases) from https://github.com/njz3/vJoy which works fine on my **Windows 10** 21H2.
+  * For **Windows 11** it seems like [v2.1.9.1](https://github.com/jshafer817/vJoy/releases/tag/v2.1.9.1) from the original author works better. It may need a few tries to install.
 * The latest version of this plugin: get the `TJoy-TouchPortal-Plugin-X.X.X.X.tpp` file from the latest release on the [Releases](https://github.com/mpaperno/TJoy/releases) page.
 
 ### Install:
-1. The plugin is distributed and is used as a standard Touch Portal `.tpp` plugin file. If you know how to import a plugin,
+1. The plugin is distributed and installed as a standard Touch Portal `.tpp` plugin file. If you know how to import a plugin,
 just do that and skip to step 4.
 2. Import the plugin:
     1. Start _Touch Portal_ (if not already running).
@@ -77,6 +78,17 @@ Enable this option to get the actual raw values instead (eg. for vJoy axis it's 
   need them all. Here you can specify the maximum number of buttons to report (eg. `8` to get buttons 1-8),
   or a range of buttons to report for, for example `32 - 64` to get only those buttons states sent over. Enter zero
   to not send any button states at all.
+
+
+## Known Issues
+
+**Please note that support for detecting when a slider has been released (is no longer being touched) is spotty at the moment.**
+This is very useful in a joystick-like control, but due to some vague language on the Touch Portal API reference site,
+it turned out this feature maybe wasn't even meant to exist in TP.  It does, however, work most of the time
+if you pause for a fraction of a second before releasing the slider.
+
+I have a request in with the TP authors to improve this detection so it is more reliable, since it is vital for things
+like "self-centering" joystick axes. Please help by also requesting this feature on the Touch Portal Discord server or via other support means.
 
 
 ## Usage
@@ -148,12 +160,6 @@ at this time). Also note that a vJoy device can be set up to have either discret
     The difference here is that a slider will return to it's center point when a POV hat is in the neutral position. Currently there is no way to specify which
     point of the slider is "neutral" and no way to explicitly center a POV hat with a slider except using the "reset to center" option which works upon
     release of the slider.
-
-**Please note that support for detecting when a slider has been released (is no longer being touched) is spotty at the moment.** Due to some vague
-language on the Touch Portal API reference site, it turned out this feature wasn't even meant to exist.  It does, however, work most of the time
-if you pause for a fraction of a second before releasing the slider. I have a request in with the TP authors to improve this detection
-so it is more reliable, since it is vital for things like "self-centering" joystick axes. Please help by also requesting this feature
-on the Touch Portal Discord server or via other support means.
 
 #### Plugin
 
