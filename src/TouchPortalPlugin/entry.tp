@@ -1,6 +1,6 @@
 {
 	"sdk": 5,
-	"version": 100,
+	"version": 90000,
 	"name": "TJoy Touch Portal Plugin",
 	"id": "us.wdg.max.tpp.tjoy",
 	"configuration": {
