@@ -680,6 +680,15 @@ namespace TJoy.TouchPortalPlugin
           return;
       }
       _vjoyDevice.DispatchEvent(ev);
+
+      // check for related connectors
+      if (!_connectorsDict.TryGetValue(Utils.ConnectorDictKey(ev), out ConnectorTrackingData cdata) || cdata.lastValue == ev.value)
+        return;
+      cdata.lastValue = ev.value;
+      // assume no connectors are being moved at the same time
+      cdata.isDown = false;
+      cdata.currentShortId = default;
+      UpdateRelatedConnectors(cdata);
     }
 
     private void HandleConnectorEvent(VJEvent ev, ConnectorChangeEvent message)
