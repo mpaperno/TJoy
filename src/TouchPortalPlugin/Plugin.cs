@@ -270,6 +270,7 @@ namespace TJoy.TouchPortalPlugin
     private async void VJoyCollectStateDataTask()
     {
       _logger.LogDebug("State updater task started.");
+      _ = _vjoyDevice.TryGetAxisInfo(HID_USAGES.HID_USAGE_POV, out VJAxisInfo povInfo);
       try {
         while (_settings.StateRefreshRate > 0 && !_stateTaskShutdownToken.IsCancellationRequested) {
 
@@ -284,7 +285,7 @@ namespace TJoy.TouchPortalPlugin
             if (val < 0)
               continue;
             if (!_settings.StateReportAxisRaw)
-              val = _vjoyDevice.ScaleAxisToInputRange(axe.usage, val, 0, 100);
+              val = Utils.RangeValueToPercent(val, axe.minValue, axe.maxValue);
             UpdateTpJoystickState(ControlType.Axis, axe.usage.ToString().Split('_').Last(), val);
           }
           // CPOV
@@ -293,7 +294,7 @@ namespace TJoy.TouchPortalPlugin
             if (val < -1)
               continue;
             if (!_settings.StateReportAxisRaw && val > -1)
-              val = _vjoyDevice.ScaleAxisToInputRange(HID_USAGES.HID_USAGE_POV, val, 0, 100);
+              val = Utils.RangeValueToPercent(val, povInfo.minValue, povInfo.maxValue);
             UpdateTpJoystickState(ControlType.ContPov, i.ToString(), val);
           }
           // DPOV
@@ -541,9 +542,23 @@ namespace TJoy.TouchPortalPlugin
           _logger.LogWarning($"Unknown Action/Connector ID: '{message.Id}'.");
         return false;
       }
+      // validate the target control ID
       var idStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_TARGET_ID, isConn));
       if (string.IsNullOrWhiteSpace(idStr)) {
         _logger.LogWarning($"Required target control ID '{idStr}' is empty or invalid for action ID '{message.Id}'.");
+        return false;
+      }
+      // for axes the ID is the ending of HID_USAGS enum names
+      if (ev.type == ControlType.Axis) {
+        if (!Enum.TryParse("HID_USAGE_" + idStr, out ev.axis)) {
+          _logger.LogWarning($"Axis ID is invalid: '{idStr}'.");
+          return false;
+        }
+        ev.targetId = (uint)ev.axis;
+      }
+      // for everything else the target ID is just the number: 1-4, 1-128
+      else if (!uint.TryParse(idStr, out ev.targetId)) {
+        _logger.LogWarning($"Target control ID/number is invalid: '{idStr}'.");
         return false;
       }
 
@@ -559,7 +574,8 @@ namespace TJoy.TouchPortalPlugin
           if (ev.targetId > _vjoyDevice.DiscreteHatCount) {
             _logger.LogWarning($"D-POV Index out of range: {ev.targetId} out of {_vjoyDevice.DiscreteHatCount} for vJoy device {ev.devId}.");
             return false;
-          } {
+          }
+          {
             var dirStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_DPOV_DIR, isConn));
             if (string.IsNullOrWhiteSpace(dirStr) || !Enum.TryParse(dirStr, true, out ev.dpovDir)) {
               _logger.LogWarning($"Could not parse D-POV direction data for POV#: '{ev.targetId}'; direction: '{dirStr}' action: '{message.Id}'.");
@@ -577,21 +593,11 @@ namespace TJoy.TouchPortalPlugin
           break;
 
         case ControlType.Axis:
-          if (!Enum.TryParse("HID_USAGE_" + idStr, out ev.axis)) {
-            _logger.LogWarning($"Axis ID is invalid: '{idStr}'.");
-            return false;
-          }
           if (!_vjoyDevice.HasDeviceAxis(ev.axis)) {
             _logger.LogWarning($"Axis {ev.axis} not available for vJoy device {ev.devId}.");
             return false;
           }
-          ev.targetId = (uint)ev.axis;
           break;
-      }
-
-      if (ev.type != ControlType.Axis && !uint.TryParse(idStr, out ev.targetId)) {
-        _logger.LogWarning($"Target control ID/number is invalid: '{idStr}'.");
-        return false;
       }
 
       if (!isConn) {
@@ -896,12 +902,12 @@ namespace TJoy.TouchPortalPlugin
 
           case C.IDSTR_RNG_MIN:
             if (!int.TryParse(dval, out idata.rangeMin))
-              _vjoyDevice.GetDefaultAxisRange(axis, out idata.rangeMin, out _); // idata.rangeMin = 0;
+              _vjoyDevice.GetDefaultAxisRange(axis, out idata.rangeMin, out _);
             break;
 
           case C.IDSTR_RNG_MAX:
             if (!int.TryParse(dval, out idata.rangeMax))
-              _vjoyDevice.GetDefaultAxisRange(axis, out _, out idata.rangeMax); // idata.rangeMax = Utils.GetMaxValueForEventType(evtype);
+              _vjoyDevice.GetDefaultAxisRange(axis, out _, out idata.rangeMax);
             break;
 
           case C.IDSTR_DPOV_DIR:

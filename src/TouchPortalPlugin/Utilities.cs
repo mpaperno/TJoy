@@ -74,18 +74,6 @@ namespace TJoy.Utilities
       };
     }
 
-    // FIXME
-    //internal static int GetMaxValueForEventType(ControlType evtype)
-    //{
-    //  return evtype switch {
-    //    ControlType.Axis => C.VJ_AXIS_MAX_VALUE,
-    //    ControlType.ContPov => C.VJ_CPOV_MAX_VALUE,
-    //    ControlType.Slider => C.XO_SLIDER_MAX_VALUE,
-    //    ControlType.DiscPov => 3,
-    //    _ => 1  // button
-    //  };
-    //}
-
     internal static int GetDefaultValueForEventType(ControlType evtype)
     {
       return evtype switch {
@@ -195,6 +183,16 @@ namespace TJoy.Utilities
       return ret >= min ? ret : ret + max;
     }
 
+    internal static int PercentOfRange(int value, int rangeMin, int rangeMax)
+    {
+      return (int)Math.Round((rangeMax - rangeMin) / 100.0f * value) + rangeMin;
+    }
+
+    internal static int RangeValueToPercent(int value, int rangeMin, int rangeMax)
+    {
+      return (int)Math.Round((float)value / (rangeMax - rangeMin) * 100.0f);
+    }
+
     // scale a value from one range into another
     internal static int ConvertRange(int value, int inMin, int inMax, int outMin, int outMax, bool clamp = false)
     {
@@ -204,19 +202,6 @@ namespace TJoy.Utilities
         ret = Math.Clamp(ret, outMin, outMax);
       return ret;
     }
-
-    // scale TP slider range to joystick axis range
-    //internal static int SliderRange2AxisRange(int value, int outMin, int outMax)
-    //{
-    //  return ConvertRange(value, 0, C.TP_SLIDER_MAX_VALUE, outMin, outMax);
-    //}
-
-    // scale joystick axis range onto TP slider range
-    //internal static int AxisRange2SliderRange(int value, int outMin, int outMax)
-    //{
-    //  var ret = ConvertRange(value, outMin, outMax, 0, C.TP_SLIDER_MAX_VALUE);
-    //  return Math.Clamp(ret, 0, 100);
-    //}
 
     // translate slider value to dpov direction
     internal static DPovDirection SliderRangeToDpovRange(int value, DPovDirection fromAxis)
