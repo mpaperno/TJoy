@@ -1,16 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <!-- <ApplicationVersion>1.0.0.%2a</ApplicationVersion> -->
+    <AssemblyName>TJoyTouchPortalPlugin</AssemblyName>
     <ProjectGuid>{6405CA14-031F-4FEE-89AE-A1320BDDEB40}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>TJoy</RootNamespace>
-    <AssemblyName>TJoyTouchPortalPlugin</AssemblyName>
     <TargetFramework>net5.0</TargetFramework>
+    <Platforms>AnyCPU;x64</Platforms>
+    <!-- <ApplicationVersion>1.0.0.%2a</ApplicationVersion> -->
     <!-- <FileAlignment>512</FileAlignment> -->
     <!-- <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
     <!-- <Deterministic>true</Deterministic> -->
-    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -26,10 +26,10 @@
     <RepositoryUrl>https://github.com/mpaperno/TJoy</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>0.9.0</Version>
+    <Version>0.9.1</Version>
     <StartupObject>TJoy.TouchPortalPlugin.Program</StartupObject>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>

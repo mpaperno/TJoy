@@ -26,17 +26,10 @@ Write-Information "Restoring '$ProjectName' component....`n" -InformationAction 
 dotnet restore "$ProjectName"
 #dotnet restore "$ProjectName.Tests"
 
-#Write-Information "Building '$ProjectName' component...`n" -InformationAction Continue
-#dotnet build "$ProjectName" --configuration $Configuration -p:Platform=x64
-
 $CurrentDir = [System.IO.Path]::GetDirectoryName($myInvocation.MyCommand.Path)
 
 $DistFolderPath = "$CurrentDir\..\packages-dist"
 $PluginFilesPath = "$DistFolderPath\$DistroName"
-
-if (Test-Path $PluginFilesPath) {
-  Remove-Item $PluginFilesPath -Force -Recurse
-}
 
 if (Test-Path $DistFolderPath) {
   Remove-Item $DistFolderPath -Force -Recurse
@@ -47,15 +40,12 @@ Write-Information "Cleaning '$ProjectName' packages-dist folder '$DistFolderPath
 Write-Information "Publishing '$ProjectName' component to '$PluginFilesPath'...`n" -InformationAction Continue
 dotnet publish "$ProjectName" --output "$PluginFilesPath\dist" --configuration $Configuration -p:Platform=x64 $VersionSuffixCommand $VersionSuffix -r "win-x64" --self-contained true
 
-# Run Documentation
-#dotnet run -p "$ProjectName-Generator" "$DistFolderPath\$DistroName"
-
 # Copy Entry.tp, Readme, Documentation, CHANGELOG to publish
 copy "$ProjectName/entry.tp" "$PluginFilesPath"
 copy "$ProjectName/vJoyTP.png" "$PluginFilesPath"
 copy "..\README.md" "$PluginFilesPath"
 copy "..\LICENSE" "$PluginFilesPath\LICENSE.txt"
-#copy "..\CHANGELOG.md" "$PluginFilesPath"
+copy "..\CHANGELOG.md" "$PluginFilesPath"
 
 # Get version
 $FileVersion = (Get-Command $PluginFilesPath\dist\$BinarytName.dll).FileVersionInfo.FileVersion

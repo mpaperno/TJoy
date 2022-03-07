@@ -22,6 +22,7 @@ Your testing and feedback is important, please help!
 * Use Touch Portal Actions and Sliders for all joystick controls (except joystick buttons currently do not have a slider input).
 * Multiple options for each joystick control. Click, hold, or toggle buttons/hats, adjust axis range and precision,
   reverse axis direction, set up custom mixes, button sequences, and much more.
+* Control multiple joystick buttons/axes/hats simultaneously (usually up to 10, depending on your touchscreen and device performance).
 * Use calculations in action data fields, for example to control a joystick axis value based on the value of
   a variable or state, with basic math operators available (+, -, *, /, % (modulo)).
 * Use multiple linked controls for the same axis, for example a "coarse" slider over the full range
