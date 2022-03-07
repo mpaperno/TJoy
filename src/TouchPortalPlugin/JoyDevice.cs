@@ -46,7 +46,7 @@ namespace TJoy
     public string SerialNumber        { get => _vjoy.GetvJoySerialNumberString(); }
     public uint ButtonCount           { get => _vjoyInfo.nButtons; }
     public uint DiscreteHatCount      { get => _vjoyInfo.nDiscPov; }
-    public uint ContionousHatCount    { get => _vjoyInfo.nContPov; }
+    public uint ContinuousHatCount    { get => _vjoyInfo.nContPov; }
     public uint AxisCount             { get => (uint)_vjoyInfo.axes.Count; }
     public List<VJAxisInfo> AxisInfo  { get => _vjoyInfo.axes.Values.ToList(); }
 
@@ -260,11 +260,14 @@ namespace TJoy
     {
       if (axis == HID_USAGES.HID_USAGE_POV && value == -1)
         return -1;
+
       _ = TryGetAxisInfo(axis, out VJAxisInfo info);
       int ret = value;
       if (inMax - inMin != 100)
         ret = Utils.ConvertRange(ret, 0, 100, inMin, inMax);
-      ret = Utils.ConvertRange(ret, 0, 100, info.minValue, info.maxValue);
+      ret = Utils.PercentOfRange(ret, info.minValue, info.maxValue);
+      if (axis == HID_USAGES.HID_USAGE_POV && _deviceType == DeviceType.VJoy)
+        ret -= (C.VJ_CPOV_MAX_VALUE / 2);
       if (normAxis)
         ret = GetNormalizedAxisValue(ref info, ret);
       return ret;
@@ -274,9 +277,12 @@ namespace TJoy
     public int ScaleAxisToInputRange(HID_USAGES axis, int value, int outMin, int outMax)
     {
       _ = TryGetAxisInfo(axis, out VJAxisInfo info);
-      var ret = Utils.ConvertRange(value, info.minValue, info.maxValue, 0, 100);
+      int ret = value;
+      if (axis == HID_USAGES.HID_USAGE_POV && _deviceType == DeviceType.VJoy)
+        ret = Utils.ModAxis(ret + (info.maxValue / 2), info.minValue, info.maxValue);
+      ret = Utils.RangeValueToPercent(ret, info.minValue, info.maxValue);
       if (outMax - outMin != 100)
-        ret = Utils.ConvertRange(ret, outMin, outMax, 0, 100);
+        return Utils.ConvertRange(ret, outMin, outMax, 0, 100, true);
       return Math.Clamp(ret, 0, 100);
     }
 
@@ -360,16 +366,12 @@ namespace TJoy
 
     private void VJoyCPovAction(in VJEvent ev)
     {
-      //var value = ScaleInputToAxisRange(HID_USAGES.HID_USAGE_POV, ev.value, ev.rangeMin, ev.rangeMax, true);
-      var value = GetNormalizedAxisValue(ev.axis, ev.value);
-      _vjoy.SetContPov(value, ev.devId, ev.targetId);
+      _vjoy.SetContPov(ev.value, ev.devId, ev.targetId);
     }
 
     private void VJoyAxisAction(in VJEvent ev)
     {
-      //var value = ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax, true);
-      var value = GetNormalizedAxisValue(ev.axis, ev.value);
-      _vjoy.SetAxis(value, ev.devId, ev.axis);
+      _vjoy.SetAxis(ev.value, ev.devId, ev.axis);
     }
 
     private void VJoyReleaseButtonLater(ControlType evtype, uint devId, uint targetId)

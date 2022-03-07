@@ -289,7 +289,7 @@ namespace TJoy.TouchPortalPlugin
             UpdateTpJoystickState(ControlType.Axis, axe.usage.ToString().Split('_').Last(), val);
           }
           // CPOV
-          for (uint i=1, e = _vjoyDevice.ContionousHatCount; i <= e; ++i) {
+          for (uint i=1, e = _vjoyDevice.ContinuousHatCount; i <= e; ++i) {
             var val = Utils.GetVJoyStateReportCPovValue(state, i);
             if (val < -1)
               continue;
@@ -585,8 +585,8 @@ namespace TJoy.TouchPortalPlugin
           break;
 
         case ControlType.ContPov:
-          if (ev.targetId > _vjoyDevice.ContionousHatCount) {
-            _logger.LogWarning($"C-POV Index out of range: {ev.targetId} out of {_vjoyDevice.ContionousHatCount} for vJoy device {ev.devId}.");
+          if (ev.targetId > _vjoyDevice.ContinuousHatCount) {
+            _logger.LogWarning($"C-POV Index out of range: {ev.targetId} out of {_vjoyDevice.ContinuousHatCount} for vJoy device {ev.devId}.");
             return false;
           }
           ev.axis = HID_USAGES.HID_USAGE_POV;
@@ -648,35 +648,32 @@ namespace TJoy.TouchPortalPlugin
           break;
 
         case ControlType.DiscPov:
-          if (ev.btnAction == ButtonAction.None && !Enum.TryParse(ev.valueStr, true, out ev.btnAction)) {
+          if (ev.btnAction == ButtonAction.Up) {
+            ev.value = -1;
+            break;
+          }
+          else if (!Enum.TryParse(ev.valueStr, true, out ev.btnAction)) {
             _logger.LogWarning($"Could not parse button action type for POV#: '{ev.targetId}'; act: '{ev.valueStr}'.");
             return;
           }
+          ev.value = (int)ev.dpovDir;
           break;
 
+        case ControlType.Axis:
         case ControlType.ContPov:
           if (ev.btnAction == ButtonAction.Up) {
             if ((ev.value = GetResetValueFromEvent(message, ev.tpId, ev.type)) < -1)
               return;
           }
           else if (!TryEvaluateValue(ev.valueStr, out ev.value)) {
-            _logger.LogWarning($"Cannot parse C-POV value for POV# {ev.targetId} from '{ev.valueStr}'.");
+            _logger.LogWarning($"Cannot parse {Utils.EventTypeToControlName(ev.type)} value for target '{(ev.type == ControlType.Axis ? ev.axis : ev.targetId)}' from '{ev.valueStr}'.");
             return;
           }
-          if (ev.value > -1)
-            ev.value = _vjoyDevice.ScaleInputToAxisRange(HID_USAGES.HID_USAGE_POV, ev.value, 0, 100);
-          break;
-
-        case ControlType.Axis:
-          if (ev.btnAction == ButtonAction.Up) {
-            if ((ev.value = GetResetValueFromEvent(message, ev.tpId, ev.type)) < 0)
-              return;
-          }
-          else if (!TryEvaluateValue(ev.valueStr, out ev.value)) {
-            _logger.LogWarning($"Cannot parse Axis value for {ev.axis} from '{ev.valueStr}'.");
-            return;
-          }
-          ev.value = _vjoyDevice.ScaleInputToAxisRange(ev.axis, ev.value, 0, 100);
+          if (ev.value < 0)
+            break;
+          if (ev.type == ControlType.ContPov)
+            ev.value += 50;
+          ev.value = _vjoyDevice.ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax, true);
           break;
 
         default:
@@ -720,7 +717,7 @@ namespace TJoy.TouchPortalPlugin
       switch (ev.type) {
         case ControlType.Axis:
         case ControlType.ContPov:
-          ev.value = _vjoyDevice.ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax); // message.Value; // Utils.SliderRange2AxisRange(message.Value, ev.rangeMin, ev.rangeMax);
+          ev.value = _vjoyDevice.ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax, true);
           _logger.LogDebug($"Axis Connector Event: axe: {ev.axis}; orig val: {message.Value}; new value {ev.value}; range min/max: {ev.rangeMin}/{ev.rangeMax}");
           break;
 
@@ -749,11 +746,7 @@ namespace TJoy.TouchPortalPlugin
       if (needUpdate)
         _vjoyDevice.DispatchEvent(ev);
 
-      // special case for POV sliders
-      if (ev.type == ControlType.ContPov && ev.value == -1)
-        cdata.lastValue = _vjoyDevice.ScaleInputToAxisRange(ev.axis, 50, ev.rangeMin, ev.rangeMax);
-      else
-        cdata.lastValue = ev.value;
+      cdata.lastValue = ev.value;
 
       // Now do something with all this connector tracking data we've been collecting... update some sliders!
       cdata.currentShortId = string.Empty;
@@ -794,8 +787,8 @@ namespace TJoy.TouchPortalPlugin
         }
         else {
           if (data.type == ControlType.ContPov && data.lastValue < 0)  // center POV
-            value = Math.Abs(instance.rangeMax - instance.rangeMin) / 2;
-          value = _vjoyDevice.ScaleAxisToInputRange(data.axis, value, instance.rangeMin, instance.rangeMax); // Utils.ConvertRange(data.lastValue, instance.rangeMin, instance.rangeMax, 0, C.TP_SLIDER_MAX_VALUE, true);
+            value = _vjoyDevice.ScaleInputToAxisRange(data.axis, 50, instance.rangeMin, instance.rangeMax);
+          value = _vjoyDevice.ScaleAxisToInputRange(data.axis, value, instance.rangeMin, instance.rangeMax);
         }
         _logger.LogDebug($"[UpdateRelatedConnectors] Sending update for {instance.shortId} ({data.id}, {data.type}) with val {value}; orig val: {data.lastValue}; range: {instance.rangeMin}/{instance.rangeMax}");
         if (value > -1)
