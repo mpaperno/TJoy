@@ -40,15 +40,15 @@ We need some... for now check what's in the [assets](https://github.com/mpaperno
 ## Setup
 
 ### Requirements:
-* [Touch Portal](https://www.touch-portal.com) for Windows, v3.0.6 or newer.
-* **`vJoy` device driver**. You **must** install this separately otherwise the plugin can do nothing useful.
+* [Touch Portal](https://www.touch-portal.com) Pro (paid version) for Windows, v3.0.6 or newer.
+* **`vJoy` device driver**. You **must** install this separately otherwise this plugin can do nothing useful.
   * Currently the latest signed version I can find is [v2.2.1.1](https://github.com/njz3/vJoy/releases) from https://github.com/njz3/vJoy which works fine on my **Windows 10** 21H2.
   * For **Windows 11** it seems like [v2.1.9.1](https://github.com/jshafer817/vJoy/releases/tag/v2.1.9.1) from the original author works better. It may need a few tries to install.
 * The latest version of this plugin: get the `TJoy-TouchPortal-Plugin-X.X.X.X.tpp` file from the latest release on the [Releases](https://github.com/mpaperno/TJoy/releases) page.
 
 ### Install:
 1. The plugin is distributed and installed as a standard Touch Portal `.tpp` plugin file. If you know how to import a plugin,
-just do that and skip to step 4.
+just do that and skip to step 4. There is also a [short guide](https://www.touch-portal.com/blog/post/tutorials/import-plugin-guide.php) on the Touch Portal site.
 2. Import the plugin:
     1. Start _Touch Portal_ (if not already running).
     2. Click the "gear" icon at the top and select "Import plugin..." from the menu.
@@ -91,6 +91,22 @@ if you pause for a fraction of a second before releasing the slider.
 I have a request in with the TP authors to improve this detection so it is more reliable, since it is vital for things
 like "self-centering" joystick axes. Please help by also requesting this feature on the Touch Portal Discord server or via other support means.
 
+
+## Update Notifications
+
+The latest version of this software is always published on the GitHub [Releases](https://github.com/mpaperno/TJoy/releases) page.
+You have several options for getting **automatically notified** about new releases:
+* **If you have a GitHub account**, just open the _Watch_ menu of this repo in the top right of this page, then go to  _Custom_ and select the
+_Releases_ option, then hit _Apply_ button.
+* **If you already use an RSS/Atom feed reader**, just subscribe to: https://github.com/mpaperno/TJoy/releases.atom
+* **Use a RSS/Atom feed notification service**, either one specific for GitHub or a generic one, such as
+(a list of services I found, I haven't necessarily tried nor do I endorse any of these):
+  * https://blogtrottr.com/  (generic RSS feed notifications, no account required, see above for feed URL to use)
+  * https://coderelease.io/  (no account required)
+  * https://newreleases.io/
+  * https://gitpunch.com/
+
+I will also post update notices in the Touch Portal Discord server room [#tjoy-virtual-joystick](https://discord.com/channels/548426182698467339/949596705018511430)
 
 ## Usage
 
