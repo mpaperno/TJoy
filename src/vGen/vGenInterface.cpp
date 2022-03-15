@@ -1367,9 +1367,9 @@ DWORD	IX_PlugIn(UINT UserIndex)
 		else return STATUS_IO_DEVICE_ERROR;
 	}	
 		
-	// Wait for device to start - try up to 1 second
+	// Wait for device to start - try up to 2 seconds
 	BYTE Led;
-	for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < 2000; i++)
 	{
 		res = XoutputGetLedNumber(UserIndex - 1, &Led);
 
@@ -1385,11 +1385,11 @@ DWORD	IX_PlugIn(UINT UserIndex)
 	}
 
 	// If still not ready
-	if (res == XOUTPUT_VBUS_DEVICE_NOT_READY) return STATUS_DEVICE_NOT_READY;
+	if (res == XOUTPUT_VBUS_DEVICE_NOT_READY)
+		return STATUS_DEVICE_NOT_READY;
 
 	// Create the device data structure and insert it into the device-container
-	HDEVICE h = CreateDevice(vXbox, UserIndex);
-	if (h)
+	if (CreateDevice(vXbox, UserIndex))
 		return STATUS_SUCCESS;
 	
 	// Failed to create device
@@ -1431,7 +1431,7 @@ DWORD	IX_UnPlug(UINT UserIndex)
 	if (res != STATUS_SUCCESS)
 		return res;
 	if (!Exist)
-		return STATUS_DEVICE_DOES_NOT_EXIST;
+		return STATUS_SUCCESS; // STATUS_DEVICE_DOES_NOT_EXIST;
 
 	// Owned?
 	res = IX_isControllerOwned(UserIndex, &Exist);
@@ -1450,14 +1450,14 @@ DWORD	IX_UnPlug(UINT UserIndex)
 	}
 
 	// Wait for device to be unplugged
-	for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < 2000; i++)
 	{
 		if (!IX_isControllerPluggedIn(UserIndex))
 			break;
-		Sleep(1);
+		Sleep(2);
 	}
 
-	Sleep(1000); // Temporary - replace with detection code
+	//Sleep(1000); // Temporary - replace with detection code
 
 	// If still exists - error
 	if (IX_isControllerPluggedIn(UserIndex))
@@ -1480,7 +1480,7 @@ DWORD	IX_UnPlugForce(UINT UserIndex)
 	if (res != STATUS_SUCCESS)
 		return res;
 	if (!Exist)
-		return STATUS_DEVICE_DOES_NOT_EXIST;
+		return STATUS_SUCCESS; // STATUS_DEVICE_DOES_NOT_EXIST;
 
 	// Unplug
 	res = XOutputUnPlugForce(UserIndex - 1);
@@ -1492,14 +1492,14 @@ DWORD	IX_UnPlugForce(UINT UserIndex)
 	}
 
 	// Wait for device to be unplugged
-	for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < 2000; i++)
 	{
 		if (!IX_isControllerPluggedIn(UserIndex))
 			break;
-		Sleep(1);
+		Sleep(2);
 	}
 
-	Sleep(1000); // Temporary - replace with detection code
+	//Sleep(1000); // Temporary - replace with detection code
 
 				 // If still exists - error
 	if (IX_isControllerPluggedIn(UserIndex))
