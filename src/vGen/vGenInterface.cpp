@@ -77,7 +77,7 @@ VGENINTERFACE_API int GetVJDButtonNumber(UINT rID)	// Get the number of buttons 
 	{
 		BOOL Exist;
 		if (SUCCEEDED(IX_isControllerPluggedIn(to_vXbox(rID), &Exist)) && Exist)
-			return 10;
+			return 11;
 		else
 			return 0;
 	}
@@ -1013,7 +1013,7 @@ VGENINTERFACE_API DWORD GetDevButtonN(HDEVICE hDev, UINT * nBtn)			// Get number
 
 	if SUCCEEDED(isDevice_vXbox(hDev))
 	{
-		*nBtn = 10;
+		*nBtn = 11;
 		return STATUS_SUCCESS;
 	}
 
@@ -2313,10 +2313,12 @@ BOOL ConvertPosition_vJoy2vXbox(void *vJoyPos, void *vXboxPos)
 	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 7, XINPUT_GAMEPAD_BACK);
 	// Button 8  ==> Start
 	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 8, XINPUT_GAMEPAD_START);
-	// Button 9  ==> Button LSB (Left Stick Button)
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 9, XINPUT_GAMEPAD_LEFT_THUMB);
-	// Button 10 ==> Button RSB (Right Stick Button)
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 10, XINPUT_GAMEPAD_RIGHT_THUMB);
+	// Button 9  ==> Guide
+	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 9, XINPUT_GAMEPAD_GUIDE);
+	// Button 10  ==> Button LSB (Left Stick Button)
+	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 10, XINPUT_GAMEPAD_LEFT_THUMB);
+	// Button 11 ==> Button RSB (Right Stick Button)
+	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 11, XINPUT_GAMEPAD_RIGHT_THUMB);
 
 	// Dpad / Discrete POV #1
 	switch (inPos->bHats)

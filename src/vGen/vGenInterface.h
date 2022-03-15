@@ -251,35 +251,36 @@ typedef void (CALLBACK *FfbGenCB)(PVOID, PVOID);
 ///  
 ///  vJoy		|	vXbox
 ///  -----------------------
-///  X			|	X
-///  Y			|	Y
-///  Z			|	Trigger (R)	
-///  Rx			|	Rx
-///  Ry			|	Ry
-///  Rz			|	Trigger (L)
-///  Button 1	|	A
-///  Button 2	|	B
-///  Button 3	|	X
-///  Button 4	|	Y
-///  Button 5	|	Left Bumper (LB) A.K.A Left Shoulder
-///  Button 6	|	Right Bumper (RB) A.K.A Right Shoulder
-///  Button 7	|	Back
-///  Button 8	|	Start
-///  Button 9	|	Left Thumb (LT)
-///  Button 10	|	Right Thumb (RT)
-///  
+///  X         | X
+///  Y         | Y
+///  Z         | Trigger (R)
+///  Rx        | Rx
+///  Ry        | Ry
+///  Rz        | Trigger (L)
+///  Button 1  | A
+///  Button 2  | B
+///  Button 3  | X
+///  Button 4  | Y
+///  Button 5  | Left Bumper (LB) A.K.A Left Shoulder
+///  Button 6  | Right Bumper (RB) A.K.A Right Shoulder
+///  Button 7  | Back
+///  Button 8  | Start
+///  Button 9  | Guide
+///  Button 10 | Left Thumb (LT)
+///  Button 11 | Right Thumb (RT)
+///
 ///  Axis Serial number is:
 ///		| vJoy		|	vXbox
 ///  --------------------------
-///  1	| X			|	X
-///  2	| Y			|	Y
-///  3	| Z			|	Trigger (R)	
-///  4	| Rx		|	Rx
-///  5	| Ry		|	Ry
-///  6	| Rz		|	Trigger (L)
-///  7	| Slider0	|	-
-///  8	| Slider1	|	-
-///  
+///  1	| X       | X
+///  2	| Y       | Y
+///  3	| Z       | Trigger (R)
+///  4	| Rx      | Rx
+///  5	| Ry      | Ry
+///  6	| Rz      | Trigger (L)
+///  7	| Slider0 | -
+///  8	| Slider1 | -
+///
 
 extern "C" {
 	///
