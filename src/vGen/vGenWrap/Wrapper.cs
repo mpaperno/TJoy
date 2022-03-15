@@ -415,6 +415,9 @@ namespace vGenInterfaceWrap
         [DllImport("vGenInterface.dll", EntryPoint = "GetVJDAxisMin")]
         private static extern bool _GetVJDAxisMin(UInt32 rID, UInt32 Axis, ref long Min);
 
+        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDAxisRange")]
+        private static extern bool _GetVJDAxisRange(UInt32 rID, UInt32 Axis, ref Int32 Min, ref Int32 Max);
+
         [DllImport("vGenInterface.dll", EntryPoint = "isVJDExists")]
         private static extern bool _isVJDExists(UInt32 rID);
 
@@ -581,6 +584,9 @@ namespace vGenInterfaceWrap
         [DllImport("vGenInterface.dll", EntryPoint = "isVBusExist")]
         private static extern VJRESULT _isVBusExist();
 
+        [DllImport("vGenInterface.dll", EntryPoint = "GetVBusVersion")]
+        private static extern UInt32 _GetVBusVersion();
+
         [DllImport("vGenInterface.dll", EntryPoint = "GetNumEmptyBusSlots")]
         private static extern VJRESULT _GetNumEmptyBusSlots(ref Byte nSlots);
 
@@ -590,6 +596,9 @@ namespace vGenInterfaceWrap
 
         [DllImport("vGenInterface.dll", EntryPoint = "isControllerOwned")]
         private static extern VJRESULT _isControllerOwned(UInt32 UserIndex, ref Boolean Exist);
+
+        [DllImport("vGenInterface.dll", EntryPoint = "GetVXAxisRange")]
+        private static extern VJRESULT _GetVXAxisRange(UInt32 UserIndex, UInt32 Axis, ref Int32 Min, ref Int32 Max);
 
         [DllImport("vGenInterface.dll", EntryPoint = "PlugIn")]
         private static extern VJRESULT _PlugIn(UInt32 UserIndex);
@@ -793,6 +802,7 @@ namespace vGenInterfaceWrap
         }
         public bool GetVJDAxisMax(UInt32 rID, HID_USAGES Axis, ref long Max) { return _GetVJDAxisMax(rID, (uint)Axis, ref Max); }
         public bool GetVJDAxisMin(UInt32 rID, HID_USAGES Axis, ref long Min) { return _GetVJDAxisMin(rID, (uint)Axis, ref Min); }
+        public bool GetVJDAxisRange(UInt32 rID, HID_USAGES Axis, ref Int32 Min, ref Int32 Max) { return _GetVJDAxisRange(rID, (uint)Axis, ref Min, ref Max); }
         public bool isVJDExists(UInt32 rID) { return _isVJDExists(rID); }
         public int  GetOwnerPid(UInt32 rID) { return _GetOwnerPid(rID); }
 
@@ -903,9 +913,11 @@ namespace vGenInterfaceWrap
 
         #region vXbox API
         public VJRESULT isVBusExist() { return _isVBusExist(); }
+        public UInt32   GetVBusVersion() { return _GetVBusVersion(); }
         public VJRESULT GetNumEmptyBusSlots(ref Byte nSlots) { return _GetNumEmptyBusSlots(ref nSlots); }
         public VJRESULT isControllerPluggedIn(UInt32 UserIndex, ref bool Exist) { return _isControllerPluggedIn(UserIndex, ref  Exist); }
         public VJRESULT isControllerOwned(UInt32 UserIndex, ref Boolean Exist) { return _isControllerOwned(UserIndex, ref Exist); }
+        public VJRESULT GetVBAxisRange(UInt32 UserIndex, HID_USAGES Axis, ref Int32 Min, ref Int32 Max) { return _GetVXAxisRange(UserIndex, (uint)Axis, ref Min, ref Max); }
         public VJRESULT PlugIn(UInt32 UserIndex) { return _PlugIn(UserIndex); }
         public VJRESULT PlugInNext(ref UInt32 UserIndex) { return _PlugInNext(ref UserIndex); }
         public VJRESULT UnPlug(UInt32 UserIndex) { return _UnPlug(UserIndex); }

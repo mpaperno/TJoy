@@ -103,7 +103,7 @@ VGENINTERFACE_API int GetVJDDiscPovNumber(UINT rID)	// Get the number of POVs de
 VGENINTERFACE_API int GetVJDContPovNumber(UINT rID)	// Get the number of POVs defined in the specified device
 {
 	if (Range_vXbox(rID))
-		return 0;
+		return GetVJDDiscPovNumber(rID);
 	else
 		return vJoyNS::GetVJDContPovNumber(rID);
 }
@@ -114,12 +114,7 @@ VGENINTERFACE_API BOOL GetVJDAxisExist(UINT rID, UINT Axis) // Test if given axi
 	{
 		BOOL Exist;
 		if (SUCCEEDED(IX_isControllerPluggedIn(to_vXbox(rID), &Exist)) && Exist)
-		{
-			if ((Axis == HID_USAGE_X) || (Axis == HID_USAGE_Y) || (Axis == HID_USAGE_Z) || (Axis == HID_USAGE_RX) || (Axis == HID_USAGE_RY) || (Axis == HID_USAGE_RZ))
-				return TRUE;
-			else
-				return FALSE;
-		}
+			return ((Axis == HID_USAGE_X) || (Axis == HID_USAGE_Y) || (Axis == HID_USAGE_Z) || (Axis == HID_USAGE_RX) || (Axis == HID_USAGE_RY) || (Axis == HID_USAGE_RZ) || (Axis == HID_USAGE_POV));
 		else
 			return FALSE;
 	}
@@ -129,55 +124,38 @@ VGENINTERFACE_API BOOL GetVJDAxisExist(UINT rID, UINT Axis) // Test if given axi
 
 VGENINTERFACE_API BOOL GetVJDAxisMax(UINT rID, UINT Axis, LONG * Max) // Get logical Maximum value for a given axis defined in the specified VDJ
 {
+	// The vJoy interface always uses the vJoy range.  See GetVXAxisRange for actual vXBox max value.
 	if (Range_vXbox(rID))
 	{
-		if (!IX_isControllerPluggedIn(to_vXbox(rID)))
-			return FALSE;
-
-		if ((Axis == HID_USAGE_X) || (Axis == HID_USAGE_Y) || (Axis == HID_USAGE_RX) || (Axis == HID_USAGE_RY))
-		{
+		if (Axis == HID_USAGE_POV)
+			*Max = 35900;
+		else
 			*Max = 32767;
 			return TRUE;
-		}
-		else if ((Axis == HID_USAGE_Z) || (Axis == HID_USAGE_RZ))
-		{
-			*Max = 255;
-			return TRUE;
-		}
-		else
-			return FALSE;
-	}
-	else
-		return vJoyNS::GetVJDAxisMax(rID, Axis, Max);
 
+		}
+		return vJoyNS::GetVJDAxisMax(rID, Axis, Max);
 }
 
 VGENINTERFACE_API BOOL GetVJDAxisMin(UINT rID, UINT Axis, LONG * Min) // Get logical Minimum value for a given axis defined in the specified VDJ
 {
+	// This vJoy interface always uses the vJoy range.See GetVXAxisRange for actual vXBox min value.
 	if (Range_vXbox(rID))
 	{
-		if (!IX_isControllerPluggedIn(to_vXbox(rID)))
-			return FALSE;
-
-		if ((Axis == HID_USAGE_X) || (Axis == HID_USAGE_Y)  || (Axis == HID_USAGE_RX) || (Axis == HID_USAGE_RY))
-		{
-			*Min = -32768;
-			return TRUE;
-		}
-		else if ((Axis == HID_USAGE_Z) || (Axis == HID_USAGE_RZ))
-		{
 			*Min = 0;
 			return TRUE;
 		}
-		else
-			return FALSE;
-	}
-	else
 		return vJoyNS::GetVJDAxisMin(rID, Axis, Min);
-
 }
 
-VGENINTERFACE_API enum VjdStat GetVJDStatus(UINT rID)			// Get the status of the specified vJoy Device.
+VGENINTERFACE_API BOOL GetVJDAxisRange(UINT rId, UINT Axis, LONG * Min, LONG * Max)
+{
+	if (!GetVJDAxisMin(rId, Axis, Min))
+		return FALSE;
+	return GetVJDAxisMax(rId, Axis, Max);
+}
+
+VGENINTERFACE_API VjdStat GetVJDStatus(UINT rID)			// Get the status of the specified vJoy Device.
 {
 	if (Range_vXbox(rID))
 	{
@@ -503,6 +481,15 @@ VGENINTERFACE_API DWORD isVBusExist(void)
 	return IX_isVBusExists();
 }
 
+// Get vXBox Bus version or zero if bus is not installed.
+DWORD	GetVBusVersion(void)
+{
+	DWORD Version;
+	if (SUCCEEDED(XOutputGetBusVersion(&Version)))
+		return Version;
+	return 0;
+}
+
 VGENINTERFACE_API DWORD GetNumEmptyBusSlots(UCHAR * nSlots)
 {
 	return IX_GetNumEmptyBusSlots(nSlots);
@@ -516,6 +503,30 @@ VGENINTERFACE_API DWORD isControllerPluggedIn(UINT UserIndex, PBOOL Exist)
 VGENINTERFACE_API DWORD isControllerOwned(UINT UserIndex, PBOOL Owned)
 {
 	return IX_isControllerOwned(UserIndex, Owned);
+}
+
+VGENINTERFACE_API DWORD GetVXAxisRange(UINT UserIndex, UINT Axis, LONG * Min, LONG * Max)
+{
+	switch (Axis) {
+		case HID_USAGE_X:
+		case HID_USAGE_Y:
+		case HID_USAGE_RX:
+		case HID_USAGE_RY:
+			*Max = 32767;
+			*Min = -32767;
+			return STATUS_SUCCESS;
+		case HID_USAGE_Z:
+		case HID_USAGE_RZ:
+			*Max = 255;
+			*Min = 0;
+			return STATUS_SUCCESS;
+		case HID_USAGE_POV:
+			*Max = 35900;
+			*Min = 0;
+			return STATUS_SUCCESS;
+		default:
+			return STATUS_UNSUCCESSFUL;
+	}
 }
 
 VGENINTERFACE_API DWORD PlugIn(UINT UserIndex)

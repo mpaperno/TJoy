@@ -305,7 +305,8 @@ extern "C" {
 	VGENINTERFACE_API BOOL	__cdecl  GetVJDAxisExist(UINT rID, UINT Axis); // Test if given axis defined in the specified VDJ
 	VGENINTERFACE_API BOOL	__cdecl  GetVJDAxisMax(UINT rID, UINT Axis, LONG * Max); // Get logical Maximum value for a given axis defined in the specified VDJ
 	VGENINTERFACE_API BOOL	__cdecl  GetVJDAxisMin(UINT rID, UINT Axis, LONG * Min); // Get logical Minimum value for a given axis defined in the specified VDJ
-	VGENINTERFACE_API enum VjdStat	__cdecl	GetVJDStatus(UINT rID);			// Get the status of the specified vJoy Device.
+	VGENINTERFACE_API BOOL	__cdecl GetVJDAxisRange(UINT rID, UINT Axis, LONG * Min, LONG * Max);
+	VGENINTERFACE_API VjdStat	__cdecl	GetVJDStatus(UINT rID);			// Get the status of the specified vJoy Device.
 	VGENINTERFACE_API BOOL	__cdecl	isVJDExists(UINT rID);					// TRUE if the specified vJoy Device exists
 	VGENINTERFACE_API int	__cdecl	GetOwnerPid(UINT rID);					// Reurn owner's Process ID if the specified vJoy Device exists
 
@@ -375,11 +376,13 @@ extern "C" {
 
 	// Virtual vXbox bus information
 	VGENINTERFACE_API	DWORD		__cdecl isVBusExist(void);
+	VGENINTERFACE_API DWORD		__cdecl	GetVBusVersion(void);
 	VGENINTERFACE_API	DWORD		__cdecl GetNumEmptyBusSlots(UCHAR * nSlots);
 
 	// Device Status (Plugin/Unplug and check ownership)
 	VGENINTERFACE_API	DWORD		__cdecl isControllerPluggedIn(UINT UserIndex, PBOOL Exist);
 	VGENINTERFACE_API	DWORD		__cdecl isControllerOwned(UINT UserIndex, PBOOL Exist);
+	VGENINTERFACE_API DWORD		__cdecl GetVXAxisRange(UINT UserIndex, UINT Axis, LONG * Min, LONG * Max);
 	VGENINTERFACE_API	DWORD		__cdecl PlugIn(UINT UserIndex);
 	VGENINTERFACE_API	DWORD		__cdecl PlugInNext(UINT * UserIndex);
 	VGENINTERFACE_API	DWORD		__cdecl UnPlug(UINT UserIndex);
