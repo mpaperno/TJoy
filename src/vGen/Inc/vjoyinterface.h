@@ -289,6 +289,9 @@ namespace vJoyNS {
 	VJOYINTERFACE_API BOOL	__cdecl	isVJDExists(UINT rID);					// TRUE if the specified vJoy Device exists
 	// Added in 2.1.8
 	VJOYINTERFACE_API int	__cdecl	GetOwnerPid(UINT rID);					// Reurn owner's Process ID if the specified vJoy Device exists
+	VJOYINTERFACE_API BOOL		__cdecl	UpdateVJD(UINT rID, PVOID pData);	// Update the position data of the specified vJoy Device.
+	// Added in 2.1.9.2
+	VJOYINTERFACE_API DWORD		__cdecl	GetPosition(UINT rID, PVOID pData);  // Read the position data of the specified vJoy Device
 
 	/////	Write access to vJoy Device - Basic
 	VJOYINTERFACE_API BOOL		__cdecl	AcquireVJD(UINT rID);				// Acquire the specified vJoy Device.
