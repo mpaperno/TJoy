@@ -447,6 +447,8 @@ extern "C" {
 	VGENINTERFACE_API DWORD			__cdecl isAxisExist(HDEVICE hDev, UINT nAxis, BOOL * Exist);	// Does Axis exist. See above table
 	VGENINTERFACE_API DWORD			__cdecl GetDevButtonN(HDEVICE hDev, UINT * nBtn);			// Get number of buttons in device
 	VGENINTERFACE_API DWORD			__cdecl GetDevHatN(HDEVICE hDev, UINT * nHat);				// Get number of Hat Switches in device
+	VGENINTERFACE_API DWORD			__cdecl	GetPosition(UINT rID, PVOID pData);	          //  Read current positions vJoy device
+	VGENINTERFACE_API DWORD			__cdecl	GetXInputState(UINT ledN, PXINPUT_STATE pData);	 //  Read current positions XInput device by LED number
 
 	// Position Setting
 	VGENINTERFACE_API DWORD			__cdecl SetDevButton(HDEVICE hDev, UINT Button, BOOL Press);

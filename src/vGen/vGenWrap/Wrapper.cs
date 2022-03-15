@@ -26,6 +26,28 @@ public enum VjdStat  /* Declares an enumeration data type called BOOLEAN */
     VJD_STAT_UNKN	// Unknown
 }; 
 
+// all possible result status codes for xoutput native and common APIs
+public enum VJRESULT : UInt32
+{
+    SUCCESS                 = 0x00000000,
+    UNSUCCESSFUL            = 0xC0000001,
+    INVALID_HANDLE          = 0xC0000008,
+    INVALID_PARAMETER       = 0xC000000D,
+    NO_SUCH_DEVICE          = 0xC000000E,
+    DEVICE_ALREADY_ATTACHED = 0xC0000038,
+    MEMORY_NOT_ALLOCATED    = 0xC00000A0,
+    DEVICE_NOT_READY        = 0xC00000A3,
+    DEVICE_DOES_NOT_EXIST   = 0xC00000C0,
+    INVALID_PARAMETER_1     = 0xC00000EF,
+    INVALID_PARAMETER_2     = 0xC00000F0,
+    INVALID_PARAMETER_3     = 0xC00000F1,
+    TIMEOUT                 = 0x00000102,
+    IO_DEVICE_ERROR         = 0xC0000185,
+    RESOURCE_NOT_OWNED      = 0xC0000264,
+    DEVICE_REMOVED          = 0xC00002B6,
+    DEVICE_NOT_CONNECTED    = 0x0000048F,  // winerror for XInput
+    DEVICE_NOT_AVAILABLE    = 0x000010DF,  // winerror
+}
 
 // FFB Declarations
 
@@ -144,6 +166,23 @@ namespace vGenInterfaceWrap
             public UInt32 ButtonsEx2;
             public UInt32 ButtonsEx3;
         };
+
+        [StructLayout(LayoutKind.Sequential)] public struct GamepadState
+        {
+            public XINPUT_BUTTONS Buttons;
+            public byte LeftTrigger;
+            public byte RightTrigger;
+            public short ThumbLX;
+            public short ThumbLY;
+            public short ThumbRX;
+            public short ThumbRY;
+        };
+
+        [StructLayout(LayoutKind.Sequential)] public struct XInputState
+        {
+            public UInt32 PacketNumber;
+            public GamepadState Gamepad;
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct FFB_DATA
@@ -684,8 +723,17 @@ namespace vGenInterfaceWrap
 
         [DllImport("vGenInterface.dll", EntryPoint = "SetDevPov")]
         private static extern UInt32 _SetDevPov(Int32 hDev, UInt32 nPov, float Value);
+        [DllImport("vGenInterface.dll", EntryPoint = "GetPosition")]
+        private static extern VJRESULT _GetPosition(UInt32 rID, ref JoystickState pPosition);
 
+        [DllImport("vGenInterface.dll", EntryPoint = "GetPosition")]
+        private static extern VJRESULT _GetPosition(UInt32 rID, ref GamepadState pPosition);
         #endregion Common API
+
+        #region XInput helpers
+        [DllImport("vGenInterface.dll", EntryPoint = "GetXInputState")]
+        private static extern VJRESULT _GetXInputState(UInt32 rID, ref XInputState pState);
+        #endregion XInput helpers
 
         /***************************************************/
         /********** Export functions (C#) ******************/
@@ -893,7 +941,15 @@ namespace vGenInterfaceWrap
         public UInt32 SetDevButton(Int32 hDev, UInt32 Button, Boolean Press) { return _SetDevButton(hDev, Button, Press); }
         public UInt32 SetDevAxis(Int32 hDev, UInt32 Axis, float Value) { return _SetDevAxis(hDev, Axis, Value); }
         public UInt32 SetDevPov(Int32 hDev, UInt32 nPov, float Value) { return _SetDevPov(hDev, nPov, Value); }
+        public VJRESULT GetPosition(UInt32 rID, ref JoystickState pPosition) { return _GetPosition(rID, ref pPosition); }
+        public VJRESULT GetPosition(UInt32 rID, ref GamepadState pPosition) { return _GetPosition(rID, ref pPosition); }
 
         #endregion Common API
+
+        #region XInput helpers
+
+        public static VJRESULT GetXInputState(UInt32 ledN, ref XInputState pState) { return _GetXInputState(ledN, ref pState); }
+
+        #endregion XInput helpers
     }
 }

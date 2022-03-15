@@ -17,6 +17,7 @@
 
 #pragma comment(lib, "vJoyInterfaceStat.lib")
 #pragma comment(lib, "XOutputStatic_1_2.lib")
+#pragma comment(lib, "XInput")
 
 extern "C" {
 
@@ -264,6 +265,35 @@ VGENINTERFACE_API BOOL UpdateVJD(UINT rID, PVOID pData)	// Update the position d
 	}
 	else
 		 return vJoyNS::UpdateVJD(rID, pData);
+}
+
+
+/*
+ Read current positions vJoy device
+*/
+VGENINTERFACE_API DWORD	GetPosition(UINT rID, PVOID pData)
+{
+	if (Range_vJoy(rID))
+		return vJoyNS::GetPosition(rID, pData);
+
+	UINT UserIndex = to_vXbox(rID);
+	HDEVICE h = GetDevice(vXbox, UserIndex);
+	if (!h)
+		return ERROR_DEVICE_NOT_AVAILABLE;
+
+	PVOID position = GetDevicePos(h);
+	if (!position)
+		return ERROR_DEVICE_NOT_AVAILABLE;
+	memcpy(pData, position, sizeof(XINPUT_GAMEPAD));
+	return ERROR_SUCCESS;
+}
+
+/*
+ Read current positions XInput device by LED number  (helper function)
+*/
+VGENINTERFACE_API DWORD GetXInputState(UINT ledN, PXINPUT_STATE pData)
+{
+		return XInputGetState(ledN, pData);
 }
 
 VGENINTERFACE_API BOOL SetAxis(LONG Value, UINT rID, UINT Axis)		// Write Value to a given axis defined in the specified VDJ 
