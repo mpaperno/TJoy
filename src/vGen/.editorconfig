@@ -1,0 +1,8 @@
+﻿# overrides for top-level config
+[*.{cpp,h}]
+indent_style = tab
+indent_size = 2
+
+[*.cs]
+indent_style = space
+indent_size = 4
