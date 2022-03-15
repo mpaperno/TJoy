@@ -38,6 +38,6 @@ using System.Runtime.InteropServices;
 //      Minor Version 
 //      Revision
 //      Build
-[assembly: AssemblyInformationalVersionAttribute("1.0.0.6")]
-[assembly: AssemblyVersion("1.0.0.6")]
-[assembly: AssemblyFileVersion("1.0.0.6")]
+[assembly: AssemblyInformationalVersionAttribute("1.0.1.1.856d0")]
+[assembly: AssemblyVersion("1.0.1.1")]
+[assembly: AssemblyFileVersion("1.0.1.1")]
