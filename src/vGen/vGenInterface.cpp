@@ -284,40 +284,35 @@ VGENINTERFACE_API BOOL SetAxis(LONG Value, UINT rID, UINT Axis)		// Write Value 
 		if (!SUCCEEDED(IX_isControllerPluggedIn(to_vXbox(rID))))
 			return FALSE;
 
-		// Remap Axes
-		Axis = Axis - HID_USAGE_X + 1;
-
-		// If Axis is X,Y,RX,RY (1,2,4,5) then remap range:
-		// 0 - 32768  ==> -32768 - 32767
-		SHORT vx_Value;
-		if (Axis == 1 || Axis == 2 || Axis == 4 || Axis == 5)
-		{
 			if (Value > 32767)
 				Value = 32767;
-			vx_Value = static_cast<SHORT>((Value- 16384)*2);
-			if (Axis == 1)
+		else if (Value < 0)
+			Value = 0;
+		// If Axis is X,Y,RX,RY then remap range: 0 - 32767  ==> -32768 - 32767
+		// If Triggers (Z,RZ) then remap range:   0 - 32767  ==> 0 - 255
+		SHORT vx_Value;
+		switch (Axis) {
+			case HID_USAGE_X:
+				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
 				return SUCCEEDED(IX_SetAxisLx(to_vXbox(rID), vx_Value));
-			if (Axis == 2)
+			case HID_USAGE_Y:
+				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
 				return SUCCEEDED(IX_SetAxisLy(to_vXbox(rID), vx_Value));
-			if (Axis == 4)
+			case HID_USAGE_RX:
+				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
 				return SUCCEEDED(IX_SetAxisRx(to_vXbox(rID), vx_Value));
-			if (Axis == 5)
+			case HID_USAGE_RY:
+				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
 				return SUCCEEDED(IX_SetAxisRy(to_vXbox(rID), vx_Value));
-		}
-
-		// If Triggers (3,6) then remap range:
-		// 0 - 32768  ==> 0 - 255
-		else if (Axis == 3 || Axis == 6)
-		{
-			vx_Value = static_cast<SHORT>((Value - 1) /128);
-			if (Axis == 3)
+			case HID_USAGE_Z:
+				vx_Value = static_cast<SHORT>((Value - 1) / 128);
 				return SUCCEEDED(IX_SetTriggerR(to_vXbox(rID), static_cast<BYTE>(vx_Value)));
-			if (Axis == 6)
+			case HID_USAGE_RZ:
+				vx_Value = static_cast<SHORT>((Value - 1) / 128);
 				return SUCCEEDED(IX_SetTriggerL(to_vXbox(rID), static_cast<BYTE>(vx_Value)));
-		}
-		else 
+			default:
 			return FALSE;
-		
+		}
 	}
 	return FALSE;
 }
@@ -342,20 +337,35 @@ VGENINTERFACE_API BOOL SetDiscPov(int Value, UINT rID, UCHAR nPov)	// Write Valu
 	{
 		switch (Value)
 		{
+			case -1:
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_OFF));
+
 			case 0:
-				return IX_SetDpad(to_vXbox(rID), XINPUT_GAMEPAD_DPAD_UP);
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP));
 
 			case 1:
-				return IX_SetDpad(to_vXbox(rID), XINPUT_GAMEPAD_DPAD_RIGHT);
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_RIGHT));
 
 			case 2:
-				return IX_SetDpad(to_vXbox(rID), XINPUT_GAMEPAD_DPAD_DOWN);
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN));
 
 			case 3:
-				return IX_SetDpad(to_vXbox(rID), XINPUT_GAMEPAD_DPAD_LEFT);
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_LEFT));
+
+			case 4:
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_RIGHT));
+
+			case 5:
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_RIGHT));
+
+			case 6:
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_LEFT));
+
+			case 7:
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_LEFT));
 
 			default:
-				return IX_SetDpad(to_vXbox(rID), 0);
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_OFF));
 		}
 	}
 
@@ -371,31 +381,31 @@ VGENINTERFACE_API BOOL SetContPov(DWORD Value, UINT rID, UCHAR nPov)	// Write Va
 	if (Range_vXbox(rID) && (nPov == 1))
 	{
 		if (Value == -1)
-			return IX_SetDpad(to_vXbox(rID), 0);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_OFF));
 
 		if (static_cast<LONG>(Value) < 100 || static_cast<LONG>(Value) > 35900)
-			return IX_SetDpad(to_vXbox(rID), DPAD_UP);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP));
 
 		else if (abs(static_cast<LONG>(Value - 4500)) < 100)
-			return IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_RIGHT);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_RIGHT));
 
 		else if (abs(static_cast<LONG>(Value - 9000)) < 100)
-			return IX_SetDpad(to_vXbox(rID), DPAD_RIGHT);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_RIGHT));
 
 		else if (abs(static_cast<LONG>(Value - 13500)) < 100)
-			return IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_RIGHT);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_RIGHT));
 
 		else if (abs(static_cast<LONG>(Value - 18000)) < 100)
-			return IX_SetDpad(to_vXbox(rID), DPAD_DOWN);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN));
 
 		else if (abs(static_cast<LONG>(Value - 22500)) < 100)
-			return IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_LEFT);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_LEFT));
 
 		else if (abs(static_cast<LONG>(Value - 27000)) < 100)
-			return IX_SetDpad(to_vXbox(rID), DPAD_LEFT);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_LEFT));
 
 		else if (abs(static_cast<LONG>(Value - 31500)) < 100)
-			return IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_LEFT);
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_LEFT));
 
 		else
 			return FALSE;
