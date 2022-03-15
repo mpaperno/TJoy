@@ -204,7 +204,7 @@ VGENINTERFACE_API int GetOwnerPid(UINT rID)
 VGENINTERFACE_API BOOL AcquireVJD(UINT rID)				// Acquire the specified vJoy Device.
 {
 	if (Range_vXbox(rID))
-		return (IX_PlugIn(to_vXbox(rID)));
+		return (SUCCEEDED(IX_PlugIn(to_vXbox(rID))));
 	else
 		return vJoyNS::AcquireVJD(rID);
 }
