@@ -1,5 +1,6 @@
 
 .vs/
+build/
 bin/
 obj/
 dist/
@@ -8,3 +9,8 @@ packages-dist/
 .sonarqube/
 *.user
 * - Copy
+_bak/
+x64/
+x86/
+Win32/
+gen-versioninfo.h

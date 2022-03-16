@@ -6,7 +6,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>TJoy</RootNamespace>
     <TargetFramework>net5.0</TargetFramework>
-    <Platforms>AnyCPU;x64</Platforms>
+    <Platforms>x64</Platforms>
     <!-- <ApplicationVersion>1.0.0.%2a</ApplicationVersion> -->
     <!-- <FileAlignment>512</FileAlignment> -->
     <!-- <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
@@ -26,20 +26,8 @@
     <RepositoryUrl>https://github.com/mpaperno/TJoy</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>0.9.1</Version>
+    <Version>0.9.2</Version>
     <StartupObject>TJoy.TouchPortalPlugin.Program</StartupObject>
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -47,31 +35,20 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug-x64\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <OutputPath>..\..\build\$(Platform)-$(Configuration)\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;VJOY_API_2_1;USE_VGEN</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-    <NoWarn>1701;1702;S125;CS8032</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <PlatformTarget>x64</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release-x64\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <OutputPath>..\..\build\$(Platform)-$(Configuration)\</OutputPath>
+    <DefineConstants>TRACE;VJOY_API_2_1;USE_VGEN</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
@@ -88,33 +65,13 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
-    <None Include="..\lib\vJoy\x64\vJoyInterface.dll">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
-    <!-- <PackageReference Include="Nefarius.ViGEm.Client" Version="1.17.178" /> -->
-    <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.0" />
-    <PackageReference Include="Serilog.Settings.Configuration" Version="3.3.0" />
-    <PackageReference Include="Serilog.Sinks.Async" Version="1.5.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="4.0.1" />
-    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="System.IO.FileSystem.Primitives" Version="4.3.0" />
-    <PackageReference Include="System.Runtime.Handles" Version="4.3.0" />
-    <!-- <PackageReference Include="TouchPortalSDK" Version="0.23.1" /> -->
+    <!-- <Folder Include="Properties\" /> -->
   </ItemGroup>
 
   <ItemGroup>
@@ -122,16 +79,77 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="vJoyInterfaceWrap, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\lib\vJoy\x64\vJoyInterfaceWrap.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-      <EmbedInteropTypes>false</EmbedInteropTypes>
-      <Private>true</Private>
-    </Reference>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="3.3.0" />
+    <PackageReference Include="Serilog.Sinks.Async" Version="1.5.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="4.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="System.IO.FileSystem.Primitives" Version="4.3.0" />
+    <PackageReference Include="System.Runtime.Handles" Version="4.3.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Properties\" />
+  <ItemGroup Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*; *)*USE_VIGEM(;.*)*$'))">
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.17.178" />
   </ItemGroup>
+
+  <Choose>
+    <When Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*; *)*USE_VGEN(;.*)*$'))">
+      <ItemGroup>
+        <ProjectReference Include="..\vGen\vGenWrap\vGenInterfaceWrap.csproj" />
+        <None Include="..\..\build\$(Platform)-$(Configuration)\vGenInterface.dll">
+          <Pack>True</Pack>
+          <PackagePath></PackagePath>
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+      </ItemGroup>
+      <!--
+      <ItemGroup>
+        <None Include="..\lib\vGen\x64\vGenInterface.dll">
+          <Pack>True</Pack>
+          <PackagePath></PackagePath>
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <Reference Include="vGenInterfaceWrap, Culture=neutral, processorArchitecture=MSIL">
+          <HintPath>..\lib\vGen\x64\vGenInterfaceWrap.dll</HintPath>
+          <SpecificVersion>False</SpecificVersion>
+          <EmbedInteropTypes>false</EmbedInteropTypes>
+          <Private>true</Private>
+        </Reference>
+      </ItemGroup>
+    -->
+    </When>
+    <Otherwise>
+      <ItemGroup Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*; *)*VJOY_API_2_1(;.*)*$'))">
+        <None Include="..\lib\vJoy\v2.1.9\x64-Release\vJoyInterface.dll">
+          <Pack>True</Pack>
+          <PackagePath></PackagePath>
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <Reference Include="vJoyInterfaceWrap, Culture=neutral, processorArchitecture=MSIL">
+          <HintPath>..\lib\vJoy\v2.1.9\x64-Release\vJoyInterfaceWrap.dll</HintPath>
+          <SpecificVersion>False</SpecificVersion>
+          <EmbedInteropTypes>false</EmbedInteropTypes>
+          <Private>true</Private>
+        </Reference>
+      </ItemGroup>
+      <ItemGroup Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*; *)*VJOY_API_2_2(;.*)*$'))">
+        <None Include="..\lib\vJoy\v2.2.1\x64-Release\vJoyInterface.dll">
+          <Pack>True</Pack>
+          <PackagePath></PackagePath>
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <Reference Include="vJoyInterfaceWrap, Culture=neutral, processorArchitecture=MSIL">
+          <HintPath>..\lib\vJoy\v2.2.1\x64-Release\vJoyInterfaceWrap.dll</HintPath>
+          <SpecificVersion>False</SpecificVersion>
+          <EmbedInteropTypes>false</EmbedInteropTypes>
+          <Private>true</Private>
+        </Reference>
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
 
 </Project>
