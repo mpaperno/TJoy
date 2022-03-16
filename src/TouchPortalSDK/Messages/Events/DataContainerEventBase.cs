@@ -46,8 +46,12 @@ namespace TouchPortalSDK.Messages.Events
         /// </summary>
         /// <param name="dataId">the id of the datafield.</param>
         /// <returns>the value of the data field as string or null if not exists</returns>
-        public string GetValue(string dataId)
-                => Data?.SingleOrDefault(data => data.Id == dataId)?.Value;
+        public string GetValue(string dataId, string defaultValue = null) {
+            try {
+                return Data?.SingleOrDefault(data => data.Id == dataId)?.Value ?? defaultValue;
+            }
+            catch { return defaultValue; }
+        }
 
         public Identifier GetIdentifier()
             => new Identifier(Type, Id, default);
