@@ -27,13 +27,16 @@
     <ClInclude Include="vGenInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Inc\public.h">
+    <ClInclude Include="Inc\public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Inc\vjoyinterface.h">
+    <ClInclude Include="Inc\vjoyinterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Inc\XOutput.h">
+    <ClInclude Include="Inc\XOutput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Private.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
