@@ -3,7 +3,7 @@
 //////////////////////////////////////////////////////////
 //
 // vGenInterface private header file
-// 
+//
 // Use it to declare internal global variables
 // and internal function declarations
 //
@@ -12,11 +12,11 @@
 //////////////////////////////////
 
 // Device Structure
-typedef struct 
-	{ 
-		DevType Type;	// vJoy or vXbox
+typedef struct
+	{
+		vGenNS::DevType Type;	// vJoy or vXbox
 		UINT Id;		// vJoy ID or vXbox Index
-		union 
+		union
 		{
 			XINPUT_GAMEPAD * vXboxPos;
 			JOYSTICK_POSITION_V2 * vJoyPos;
@@ -26,35 +26,19 @@ typedef struct
 std::map<HDEVICE, DEVICE> DevContainer;
 
 // Macros
-#define Range_vJoy(x) ((x)<=16 && (x)>0)?TRUE:FALSE
-#define Range_vXbox(x) ((x)<=1004 && (x)>1000)?TRUE:FALSE
+#define Range_vJoy(x) (((x)<=16 && (x)>0)?TRUE:FALSE)
+#define Range_vXbox(x) (((x)<=1004 && (x)>1000)?TRUE:FALSE)
 #define to_vXbox(x) ((x)-1000)
 #define to_vJoy(x) ((x)+1000)
 
-//
-// Constants for gamepad buttons
-//
-#define XINPUT_GAMEPAD_DPAD_UP          0x0001
-#define XINPUT_GAMEPAD_DPAD_DOWN        0x0002
-#define XINPUT_GAMEPAD_DPAD_LEFT        0x0004
-#define XINPUT_GAMEPAD_DPAD_RIGHT       0x0008
-#define XINPUT_GAMEPAD_START            0x0010
-#define XINPUT_GAMEPAD_BACK             0x0020
-#define XINPUT_GAMEPAD_LEFT_THUMB       0x0040
-#define XINPUT_GAMEPAD_RIGHT_THUMB      0x0080
-#define XINPUT_GAMEPAD_LEFT_SHOULDER    0x0100
-#define XINPUT_GAMEPAD_RIGHT_SHOULDER   0x0200
-#define XINPUT_GAMEPAD_GUIDE            0x0400
-#define XINPUT_GAMEPAD_A                0x1000
-#define XINPUT_GAMEPAD_B                0x2000
-#define XINPUT_GAMEPAD_X                0x4000
-#define XINPUT_GAMEPAD_Y                0x8000
+#define XINPUT_NUM_BUTTONS  15
 
-// Mapping the buttons to an array
-WORD g_xButtons[] = { 
-	XINPUT_GAMEPAD_A , XINPUT_GAMEPAD_B, XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_Y, \
-	XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_BACK,\
-	XINPUT_GAMEPAD_START, XINPUT_GAMEPAD_GUIDE, XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_THUMB
+// Mapping the buttons to an array, dpad at end
+WORD g_xButtons[XINPUT_NUM_BUTTONS] = {
+	vGenNS::XBTN_A , vGenNS::XBTN_B, vGenNS::XBTN_X, vGenNS::XBTN_Y,
+	vGenNS::XBTN_LEFT_SHOULDER, vGenNS::XBTN_RIGHT_SHOULDER, vGenNS::XBTN_BACK,
+	vGenNS::XBTN_START, vGenNS::XBTN_GUIDE, vGenNS::XBTN_LEFT_THUMB, vGenNS::XBTN_RIGHT_THUMB,
+	vGenNS::XBTN_DPAD_UP, vGenNS::XBTN_DPAD_DOWN, vGenNS::XBTN_DPAD_LEFT, vGenNS::XBTN_DPAD_RIGHT
 };
 
 #pragma region vXbox Internal Functions
@@ -94,6 +78,7 @@ BOOL	IX_SetBtnRT(UINT UserIndex, BOOL Press); // Right Thumb/Stick
 BOOL	IX_SetBtnLB(UINT UserIndex, BOOL Press); // Left Bumper
 BOOL	IX_SetBtnRB(UINT UserIndex, BOOL Press); // Right Bumper
 #endif
+DWORD	IX_SetAxis(UINT UserIndex, vGenNS::HID_USAGES Axis, SHORT Value);
 DWORD	IX_SetTriggerL(UINT UserIndex, BYTE Value); // Left Trigger
 DWORD	IX_SetTriggerR(UINT UserIndex, BYTE Value); // Right Trigger
 DWORD	IX_SetAxisLx(UINT UserIndex, SHORT Value); // Left Stick X
@@ -119,9 +104,10 @@ BOOL	IX_SetBtnBack(HDEVICE hDev, BOOL Press);
 BOOL	IX_SetBtnLT(HDEVICE hDev, BOOL Press); // Left Thumb/Stick
 BOOL	IX_SetBtnRT(HDEVICE hDev, BOOL Press); // Right Thumb/Stick
 BOOL	IX_SetBtnLB(HDEVICE hDev, BOOL Press); // Left Bumper
-BOOL	IX_SetBtnRB(HDEVICE hDev, BOOL Press); // Right Bumper  
+BOOL	IX_SetBtnRB(HDEVICE hDev, BOOL Press); // Right Bumper
 #endif // SPECIFICBUTTONS
 
+DWORD	IX_SetAxis(HDEVICE hDev, vGenNS::HID_USAGES Axis, SHORT Value);
 DWORD	IX_SetTriggerL(HDEVICE hDev, BYTE Value); // Left Trigger
 DWORD	IX_SetTriggerR(HDEVICE hDev, BYTE Value); // Right Trigger
 DWORD	IX_SetAxisLx(HDEVICE hDev, SHORT Value); // Left Stick X
@@ -147,21 +133,21 @@ HDEVICE	IJ_AcquireVJD(UINT rID);				// Acquire the specified vJoy Device.
 DWORD IJ_RelinquishVJD(HDEVICE hDev);			// Relinquise the specified vJoy Device.
 BOOL IJ_isVJDExists(HDEVICE hDev);
 enum VjdStat IJ_GetVJDStatus(HDEVICE hDev);			// Get the status of the specified vJoy Device.
-BOOL IJ_GetVJDAxisExist(HDEVICE hDev, UINT Axis); // Test if given axis defined in the specified VDJ
+BOOL IJ_GetVJDAxisExist(HDEVICE hDev, vGenNS::HID_USAGES Axis); // Test if given axis defined in the specified VDJ
 int	IJ_GetVJDButtonNumber(HDEVICE hDev);	// Get the number of buttons defined in the specified VDJ
 int IJ_GetVJDDiscPovNumber(HDEVICE hDev);   // Get the number of POVs defined in the specified device
 int IJ_GetVJDContPovNumber(HDEVICE hDev);	// Get the number of descrete-type POV hats defined in the specified VDJ
-BOOL IJ_SetAxis(LONG Value, HDEVICE hDev, UINT Axis);		// Write Value to a given axis defined in the specified VDJ 
-BOOL IJ_SetBtn(BOOL Value, HDEVICE hDev, UCHAR nBtn);		// Write Value to a given button defined in the specified VDJ 
-BOOL IJ_SetDiscPov(int Value, HDEVICE hDev, UCHAR nPov);	// Write Value to a given descrete POV defined in the specified VDJ 
-BOOL IJ_SetContPov(DWORD Value, HDEVICE hDev, UCHAR nPov);	// Write Value to a given continuous POV defined in the specified VDJ 
+BOOL IJ_SetAxis(LONG Value, HDEVICE hDev, vGenNS::HID_USAGES Axis);		// Write Value to a given axis defined in the specified VDJ
+BOOL IJ_SetBtn(BOOL Value, HDEVICE hDev, UCHAR nBtn);		// Write Value to a given button defined in the specified VDJ
+BOOL IJ_SetDiscPov(int Value, HDEVICE hDev, UCHAR nPov);	// Write Value to a given descrete POV defined in the specified VDJ
+BOOL IJ_SetContPov(DWORD Value, HDEVICE hDev, UCHAR nPov);	// Write Value to a given continuous POV defined in the specified VDJ
 
 #pragma endregion
 
 //// Device Container and Device Handle functions
-HDEVICE CreateDevice(DevType Type, UINT i);
+HDEVICE CreateDevice(vGenNS::DevType Type, UINT i);
 void DestroyDevice(HDEVICE & dev);
-HDEVICE GetDevice(DevType Type, UINT i);
+HDEVICE GetDevice(vGenNS::DevType Type, UINT i);
 UINT GetDeviceId(HDEVICE h);
 DWORD isDevice_vJoy(HDEVICE h);
 DWORD isDevice_vXbox(HDEVICE h);

@@ -19,6 +19,8 @@
 #pragma comment(lib, "XOutputStatic_1_2.lib")
 #pragma comment(lib, "XInput")
 
+using namespace vGenNS;
+
 extern "C" {
 
 #pragma region Interface Functions (vJoy)
@@ -27,7 +29,7 @@ VGENINTERFACE_API SHORT GetvJoyVersion(void)
 	return vJoyNS::GetvJoyVersion();
 }
 
-VGENINTERFACE_API	BOOL		vJoyEnabled(void) 
+VGENINTERFACE_API	BOOL		vJoyEnabled(void)
 {
 	return vJoyNS::vJoyEnabled();
 }
@@ -63,12 +65,12 @@ VGENINTERFACE_API	BOOL	vJoyFfbCap(BOOL * Supported)
 }
 
 VGENINTERFACE_API	BOOL	GetvJoyMaxDevices(int * n)
-{	
+{
 	return vJoyNS::GetvJoyMaxDevices(n);
 }
 
 VGENINTERFACE_API	BOOL	GetNumberExistingVJD(int * n)	// What is the number of vJoy devices currently enabled
-{	
+{
 	return vJoyNS::GetNumberExistingVJD(n);
 }
 
@@ -78,7 +80,7 @@ VGENINTERFACE_API int GetVJDButtonNumber(UINT rID)	// Get the number of buttons 
 	{
 		BOOL Exist;
 		if (SUCCEEDED(IX_isControllerPluggedIn(to_vXbox(rID), &Exist)) && Exist)
-			return 11;
+			return XINPUT_NUM_BUTTONS;
 		else
 			return 0;
 	}
@@ -108,21 +110,23 @@ VGENINTERFACE_API int GetVJDContPovNumber(UINT rID)	// Get the number of POVs de
 		return vJoyNS::GetVJDContPovNumber(rID);
 }
 
-VGENINTERFACE_API BOOL GetVJDAxisExist(UINT rID, UINT Axis) // Test if given axis defined in the specified VDJ
+VGENINTERFACE_API BOOL GetVJDAxisExist(UINT rID, HID_USAGES Axis) // Test if given axis defined in the specified VDJ
 {
+	if (Range_vJoy(rID))
+		return vJoyNS::GetVJDAxisExist(rID, Axis);
+
 	if (Range_vXbox(rID))
 	{
 		BOOL Exist;
 		if (SUCCEEDED(IX_isControllerPluggedIn(to_vXbox(rID), &Exist)) && Exist)
-			return ((Axis == HID_USAGE_X) || (Axis == HID_USAGE_Y) || (Axis == HID_USAGE_Z) || (Axis == HID_USAGE_RX) || (Axis == HID_USAGE_RY) || (Axis == HID_USAGE_RZ) || (Axis == HID_USAGE_POV));
-		else
-			return FALSE;
+			// add the pov because we can use it as a "fake" axis to set the dpad using the "compat" API
+			return ((Axis >= HID_USAGE_X && Axis <= HID_USAGE_RZ) || Axis == HID_USAGE_POV);
+
 	}
-	else
-		return (vJoyNS::GetVJDAxisExist(rID, Axis) == TRUE);
+	return FALSE;
 }
 
-VGENINTERFACE_API BOOL GetVJDAxisMax(UINT rID, UINT Axis, LONG * Max) // Get logical Maximum value for a given axis defined in the specified VDJ
+VGENINTERFACE_API BOOL GetVJDAxisMax(UINT rID, HID_USAGES Axis, LONG * Max) // Get logical Maximum value for a given axis defined in the specified VJD
 {
 	// The vJoy interface always uses the vJoy range.  See GetVXAxisRange for actual vXBox max value.
 	if (Range_vXbox(rID))
@@ -137,7 +141,7 @@ VGENINTERFACE_API BOOL GetVJDAxisMax(UINT rID, UINT Axis, LONG * Max) // Get log
 		return vJoyNS::GetVJDAxisMax(rID, Axis, Max);
 }
 
-VGENINTERFACE_API BOOL GetVJDAxisMin(UINT rID, UINT Axis, LONG * Min) // Get logical Minimum value for a given axis defined in the specified VDJ
+VGENINTERFACE_API BOOL GetVJDAxisMin(UINT rID, HID_USAGES Axis, LONG * Min) // Get logical Minimum value for a given axis defined in the specified VJD
 {
 	// This vJoy interface always uses the vJoy range.See GetVXAxisRange for actual vXBox min value.
 	if (Range_vXbox(rID))
@@ -148,7 +152,7 @@ VGENINTERFACE_API BOOL GetVJDAxisMin(UINT rID, UINT Axis, LONG * Min) // Get log
 		return vJoyNS::GetVJDAxisMin(rID, Axis, Min);
 }
 
-VGENINTERFACE_API BOOL GetVJDAxisRange(UINT rId, UINT Axis, LONG * Min, LONG * Max)
+VGENINTERFACE_API BOOL GetVJDAxisRange(UINT rId, HID_USAGES Axis, LONG * Min, LONG * Max)
 {
 	if (!GetVJDAxisMin(rId, Axis, Min))
 		return FALSE;
@@ -184,7 +188,7 @@ VGENINTERFACE_API BOOL isVJDExists(UINT rID)					// TRUE if the specified vJoy D
 
 		BOOL Exist;
 		if SUCCEEDED(IX_isControllerPluggedIn(to_vXbox(rID), &Exist))
-					 return Exist;
+			return Exist;
 		return FALSE;
 	}
 	else
@@ -194,9 +198,7 @@ VGENINTERFACE_API BOOL isVJDExists(UINT rID)					// TRUE if the specified vJoy D
 VGENINTERFACE_API int GetOwnerPid(UINT rID)
 {
 	if (Range_vXbox(rID))
-	{
 		return 0;
-	}
 	else
 		return vJoyNS::GetOwnerPid(rID);
 }
@@ -219,30 +221,31 @@ VGENINTERFACE_API VOID RelinquishVJD(UINT rID)			// Relinquish the specified vJo
 
 VGENINTERFACE_API BOOL UpdateVJD(UINT rID, PVOID pData)	// Update the position data of the specified vJoy Device.
 {
-	if (Range_vXbox(rID))
-	{
-		UINT UserIndex = to_vXbox(rID);
-		HDEVICE h = GetDevice(vXbox, UserIndex);
-		if (!h)
-			return FALSE;
+	if (Range_vJoy(rID))
+		return vJoyNS::UpdateVJD(rID, pData);
 
-		// Get  position
-		XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(h);
-		if (!position)
-			return FALSE;
+	if (!Range_vXbox(rID))
+		return FALSE;
 
-		// Convert position (in place)
-		if (!ConvertPosition_vJoy2vXbox(pData, position))
-			return FALSE;
+	UINT UserIndex = to_vXbox(rID);
+	HDEVICE h = GetDevice(vXbox, UserIndex);
+	if (!h)
+		return FALSE;
 
-		// Send data to device
-		if (ERROR_SUCCESS != XOutputSetState(UserIndex - 1, position))
-			return FALSE;
-		else
-			return TRUE;
-	}
+	// Get  position
+	XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(h);
+	if (!position)
+		return FALSE;
+
+	// Convert position (in place)
+	if (!ConvertPosition_vJoy2vXbox(pData, position))
+		return FALSE;
+
+	// Send data to device
+	if (ERROR_SUCCESS != XOutputSetState(UserIndex - 1, position))
+		return FALSE;
 	else
-		 return vJoyNS::UpdateVJD(rID, pData);
+		return TRUE;
 }
 
 
@@ -274,50 +277,30 @@ VGENINTERFACE_API DWORD GetXInputState(UINT ledN, PXINPUT_STATE pData)
 		return XInputGetState(ledN, pData);
 }
 
-VGENINTERFACE_API BOOL SetAxis(LONG Value, UINT rID, UINT Axis)		// Write Value to a given axis defined in the specified VDJ 
+VGENINTERFACE_API BOOL SetAxis(LONG Value, UINT rID, HID_USAGES Axis)		// Write Value to a given axis defined in the specified VDJ
 {
 	if (Range_vJoy(rID))
 		return (vJoyNS::SetAxis(Value, rID, Axis) == TRUE);
 
 	if (Range_vXbox(rID))
 	{
-		if (!SUCCEEDED(IX_isControllerPluggedIn(to_vXbox(rID))))
-			return FALSE;
-
-			if (Value > 32767)
-				Value = 32767;
+		if (Value > 32767)
+			Value = 32767;
 		else if (Value < 0)
 			Value = 0;
-		// If Axis is X,Y,RX,RY then remap range: 0 - 32767  ==> -32768 - 32767
+
 		// If Triggers (Z,RZ) then remap range:   0 - 32767  ==> 0 - 255
-		SHORT vx_Value;
-		switch (Axis) {
-			case HID_USAGE_X:
-				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
-				return SUCCEEDED(IX_SetAxisLx(to_vXbox(rID), vx_Value));
-			case HID_USAGE_Y:
-				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
-				return SUCCEEDED(IX_SetAxisLy(to_vXbox(rID), vx_Value));
-			case HID_USAGE_RX:
-				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
-				return SUCCEEDED(IX_SetAxisRx(to_vXbox(rID), vx_Value));
-			case HID_USAGE_RY:
-				vx_Value = static_cast<SHORT>((Value - 16384) * 2);
-				return SUCCEEDED(IX_SetAxisRy(to_vXbox(rID), vx_Value));
-			case HID_USAGE_Z:
-				vx_Value = static_cast<SHORT>((Value - 1) / 128);
-				return SUCCEEDED(IX_SetTriggerR(to_vXbox(rID), static_cast<BYTE>(vx_Value)));
-			case HID_USAGE_RZ:
-				vx_Value = static_cast<SHORT>((Value - 1) / 128);
-				return SUCCEEDED(IX_SetTriggerL(to_vXbox(rID), static_cast<BYTE>(vx_Value)));
-			default:
-			return FALSE;
-		}
+		if (Axis == HID_USAGE_LT || Axis == HID_USAGE_RT)
+			return SUCCEEDED(IX_SetAxis(to_vXbox(rID), Axis, static_cast <BYTE>((Value - 1) / 128)));
+
+		// If Axis is X,Y,RX,RY then remap range: 0 - 32767  ==> -32768 - 32767
+		SHORT vx_Value = static_cast<SHORT>((Value - 16384) * 2);
+		return SUCCEEDED(IX_SetAxis(to_vXbox(rID), Axis, vx_Value));
 	}
 	return FALSE;
 }
 
-VGENINTERFACE_API BOOL SetBtn(BOOL Value, UINT rID, UCHAR nBtn)		// Write Value to a given button defined in the specified VDJ 
+VGENINTERFACE_API BOOL SetBtn(BOOL Value, UINT rID, UCHAR nBtn)		// Write Value to a given button defined in the specified VDJ
 {
 	if (Range_vJoy(rID))
 		return vJoyNS::SetBtn(Value, rID, nBtn);
@@ -328,7 +311,7 @@ VGENINTERFACE_API BOOL SetBtn(BOOL Value, UINT rID, UCHAR nBtn)		// Write Value 
 	return FALSE;
 }
 
-VGENINTERFACE_API BOOL SetDiscPov(int Value, UINT rID, UCHAR nPov)	// Write Value to a given descrete POV defined in the specified VDJ 
+VGENINTERFACE_API BOOL SetDiscPov(int Value, UINT rID, UCHAR nPov)	// Write Value to a given descrete POV defined in the specified VDJ
 {
 	if (Range_vJoy(rID))
 		return vJoyNS::SetDiscPov(Value, rID, nPov);
@@ -338,34 +321,34 @@ VGENINTERFACE_API BOOL SetDiscPov(int Value, UINT rID, UCHAR nPov)	// Write Valu
 		switch (Value)
 		{
 			case -1:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_OFF));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_NONE));
 
 			case 0:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_UP));
 
 			case 1:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_RIGHT));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_RIGHT));
 
 			case 2:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_DOWN));
 
 			case 3:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_LEFT));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_LEFT));
 
 			case 4:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_RIGHT));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_UP_RIGHT));
 
 			case 5:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_RIGHT));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_DOWN_RIGHT));
 
 			case 6:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_LEFT));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_DOWN_LEFT));
 
 			case 7:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_LEFT));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_UP_LEFT));
 
 			default:
-				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_OFF));
+				return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_NONE));
 		}
 	}
 
@@ -373,39 +356,39 @@ VGENINTERFACE_API BOOL SetDiscPov(int Value, UINT rID, UCHAR nPov)	// Write Valu
 
 }
 
-VGENINTERFACE_API BOOL SetContPov(DWORD Value, UINT rID, UCHAR nPov)	// Write Value to a given continuous POV defined in the specified VDJ 
+VGENINTERFACE_API BOOL SetContPov(DWORD Value, UINT rID, UCHAR nPov)	// Write Value to a given continuous POV defined in the specified VDJ
 {
 	if (Range_vJoy(rID))
 		return vJoyNS::SetContPov(Value, rID, nPov);
 
-	if (Range_vXbox(rID) && (nPov == 1))
+	if (Range_vXbox(rID) && nPov == 1)
 	{
 		if (Value == -1)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_OFF));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_NONE));
 
 		if (static_cast<LONG>(Value) < 100 || static_cast<LONG>(Value) > 35900)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_UP));
 
 		else if (abs(static_cast<LONG>(Value - 4500)) < 100)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_RIGHT));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_UP_RIGHT));
 
 		else if (abs(static_cast<LONG>(Value - 9000)) < 100)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_RIGHT));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_RIGHT));
 
 		else if (abs(static_cast<LONG>(Value - 13500)) < 100)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_RIGHT));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_DOWN_RIGHT));
 
 		else if (abs(static_cast<LONG>(Value - 18000)) < 100)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_DOWN));
 
 		else if (abs(static_cast<LONG>(Value - 22500)) < 100)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_DOWN | DPAD_LEFT));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_DOWN_LEFT));
 
 		else if (abs(static_cast<LONG>(Value - 27000)) < 100)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_LEFT));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_LEFT));
 
 		else if (abs(static_cast<LONG>(Value - 31500)) < 100)
-			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), DPAD_UP | DPAD_LEFT));
+			return SUCCEEDED(IX_SetDpad(to_vXbox(rID), XBTN_DPAD_UP_LEFT));
 
 		else
 			return FALSE;
@@ -515,7 +498,7 @@ VGENINTERFACE_API DWORD isControllerOwned(UINT UserIndex, PBOOL Owned)
 	return IX_isControllerOwned(UserIndex, Owned);
 }
 
-VGENINTERFACE_API DWORD GetVXAxisRange(UINT UserIndex, UINT Axis, LONG * Min, LONG * Max)
+VGENINTERFACE_API DWORD GetVXAxisRange(UINT UserIndex, HID_USAGES Axis, LONG * Min, LONG * Max)
 {
 	switch (Axis) {
 		case HID_USAGE_X:
@@ -528,10 +511,6 @@ VGENINTERFACE_API DWORD GetVXAxisRange(UINT UserIndex, UINT Axis, LONG * Min, LO
 		case HID_USAGE_Z:
 		case HID_USAGE_RZ:
 			*Max = 255;
-			*Min = 0;
-			return STATUS_SUCCESS;
-		case HID_USAGE_POV:
-			*Max = 35900;
 			*Min = 0;
 			return STATUS_SUCCESS;
 		default:
@@ -643,6 +622,11 @@ VGENINTERFACE_API BOOL SetBtnRB(UINT UserIndex, BOOL Press)
 }
 
 #endif // SPECIFICBUTTONS
+
+VGENINTERFACE_API DWORD SetGamepadAxis(UINT UserIndex, HID_USAGES Axis, SHORT Value) // Right Trigger
+{
+	return IX_SetAxis(UserIndex, Axis, Value);
+}
 
 VGENINTERFACE_API DWORD SetTriggerR(UINT UserIndex, BYTE Value) // Right Trigger
 {
@@ -834,11 +818,11 @@ VGENINTERFACE_API DWORD isDevExist(UINT DevId, DevType dType, BOOL * Exist)
 	};
 
 	if (dType == vXbox)
-	{ 
+	{
 		res = IX_isControllerPluggedIn(DevId, Exist);
 		return res;
 	}
-	
+
 	return STATUS_UNSUCCESSFUL;
 }
 
@@ -871,7 +855,7 @@ VGENINTERFACE_API DWORD isDevFree(UINT DevId, DevType dType, BOOL * Free)
 }
 
 // Cannot implement isDevOwned(h) because only an OWNED device has a handle
-// BUSY device is is owned by another feeder so it does not have a handle 
+// BUSY device is is owned by another feeder so it does not have a handle
 #if 0
 VGENINTERFACE_API BOOL isDevOwned(HDEVICE hDev)
 {
@@ -982,13 +966,13 @@ VGENINTERFACE_API DWORD GetDevHandle(UINT DevId, DevType dType, HDEVICE * hDev) 
 
 		// Handle is OK but device was removed so we remove the entry from the container
 		DestroyDevice(*hDev);
-		return STATUS_DEVICE_REMOVED; 
+		return STATUS_DEVICE_REMOVED;
 	}
 	else
 		return STATUS_UNSUCCESSFUL;
 }
 
-VGENINTERFACE_API DWORD isAxisExist(HDEVICE hDev, UINT nAxis, BOOL * Exist)	// Does Axis exist.
+VGENINTERFACE_API DWORD isAxisExist(HDEVICE hDev, HID_USAGES Axis, BOOL * Exist)	// Does Axis exist.
 {
 	BOOL Owned;
 	DWORD res;
@@ -1014,20 +998,16 @@ VGENINTERFACE_API DWORD isAxisExist(HDEVICE hDev, UINT nAxis, BOOL * Exist)	// D
 
 	if SUCCEEDED(isDevice_vJoy(hDev))
 	{
-		*Exist = IJ_GetVJDAxisExist(hDev, nAxis);
+		*Exist = IJ_GetVJDAxisExist(hDev, Axis);
 		return STATUS_SUCCESS;
 	}
 
 
 	if SUCCEEDED(isDevice_vXbox(hDev))
 	{
-		if (nAxis >= 1 && nAxis <= 6)
-			*Exist = TRUE;
-		else
-			*Exist = FALSE;
+		*Exist = (Axis >= HID_USAGE_X && Axis <= HID_USAGE_RZ);
 		return STATUS_SUCCESS;
 	}
-
 
 	return STATUS_UNSUCCESSFUL;
 }
@@ -1057,14 +1037,14 @@ VGENINTERFACE_API DWORD GetDevButtonN(HDEVICE hDev, UINT * nBtn)			// Get number
 		return STATUS_DEVICE_REMOVED;
 
 	if SUCCEEDED(isDevice_vJoy(hDev))
-	{ 
+	{
 		* nBtn = IJ_GetVJDButtonNumber(hDev);
 		return STATUS_SUCCESS;
 	}
 
 	if SUCCEEDED(isDevice_vXbox(hDev))
 	{
-		*nBtn = 11;
+		*nBtn = XINPUT_NUM_BUTTONS;
 		return STATUS_SUCCESS;
 	}
 
@@ -1131,17 +1111,16 @@ VGENINTERFACE_API DWORD SetDevButton(HDEVICE hDev, UINT Button, BOOL Press)
 	return STATUS_INVALID_HANDLE;
 }
 
-VGENINTERFACE_API DWORD SetDevAxis(HDEVICE hDev, UINT Axis, FLOAT Value)
-{		
+VGENINTERFACE_API DWORD SetDevAxis(HDEVICE hDev, HID_USAGES Axis, FLOAT Value)
+{
 	BOOL bRes;
 	if SUCCEEDED(isDevice_vJoy(hDev))
 	{
 		// Convert Value from range 0-100 to range 0-32768
 		LONG vj_Value = static_cast <LONG>(32768 * Value / 100);
 		// Convert Axis from 1-8 to HID_USAGE_X-HID_USAGE_SL0
-		UINT vj_Axis = Axis + HID_USAGE_X - 1;
 
-		bRes = IJ_SetAxis(vj_Value, hDev, vj_Axis);
+		bRes = IJ_SetAxis(vj_Value, hDev, Axis);
 		if (bRes == TRUE)
 			return STATUS_SUCCESS;
 		else
@@ -1150,35 +1129,13 @@ VGENINTERFACE_API DWORD SetDevAxis(HDEVICE hDev, UINT Axis, FLOAT Value)
 
 	if SUCCEEDED(isDevice_vXbox(hDev))
 	{
+		// Convert Value from range (0 - 100) to range (0 - 255) for Triggers
+		if (Axis == HID_USAGE_LT || Axis == HID_USAGE_RT)
+			return IX_SetAxis(hDev, Axis, static_cast <BYTE>(255 * Value / 100));
+
 		// Convert Value from range (0 - 100) to range (-32768 - 32767) for axes X,Y,RX,RY
 		SHORT vx_Value = static_cast <SHORT>((65535 * Value / 100) - 32768);
-		// Convert Value from range (0 - 100) to range (0 - 255) for Triggers
-		BYTE vx_TValue = static_cast <BYTE>(255 * Value / 100);
-
-		switch (Axis)
-		{
-			case 1:
-				return IX_SetAxisLx(hDev, vx_Value);
-
-			case 2:
-				return IX_SetAxisLy(hDev, vx_Value);
-
-			case 3:
-				return IX_SetTriggerR(hDev, vx_TValue);
-
-			case 4:
-				return IX_SetAxisRx(hDev, vx_Value);
-
-			case 5:
-				return IX_SetAxisRy(hDev, vx_Value);
-
-			case 6:
-				return IX_SetTriggerL(hDev, vx_TValue);
-
-			default:
-				return STATUS_INVALID_HANDLE;
-				break;
-		}
+		return IX_SetAxis(hDev, Axis, vx_Value);
 	}
 
 	return STATUS_INVALID_HANDLE;
@@ -1237,23 +1194,23 @@ VGENINTERFACE_API DWORD  SetDevPov(HDEVICE hDev, UINT nPov, FLOAT Value)
 			return FALSE;
 
 		if (Value == 0)
-			return IX_SetDpad(hDev, DPAD_UP);
+			return IX_SetDpad(hDev, XBTN_DPAD_UP);
 		if (Value == 45)
-			return IX_SetDpad(hDev, DPAD_UP | DPAD_RIGHT);
+			return IX_SetDpad(hDev, XBTN_DPAD_UP_RIGHT);
 		if (Value == 90)
-			return IX_SetDpad(hDev, DPAD_RIGHT);
+			return IX_SetDpad(hDev, XBTN_DPAD_RIGHT);
 		if (Value == 135)
-			return IX_SetDpad(hDev, DPAD_DOWN | DPAD_RIGHT);
+			return IX_SetDpad(hDev, XBTN_DPAD_DOWN_RIGHT);
 		if (Value == 180)
-			return IX_SetDpad(hDev, DPAD_DOWN);
+			return IX_SetDpad(hDev, XBTN_DPAD_DOWN);
 		if (Value == 225)
-			return IX_SetDpad(hDev, DPAD_DOWN | DPAD_LEFT);
+			return IX_SetDpad(hDev, XBTN_DPAD_DOWN_LEFT);
 		if (Value == 270)
-			return IX_SetDpad(hDev, DPAD_LEFT);
+			return IX_SetDpad(hDev, XBTN_DPAD_LEFT);
 		if (Value == 315)
-			return IX_SetDpad(hDev, DPAD_UP | DPAD_LEFT);
+			return IX_SetDpad(hDev, XBTN_DPAD_UP_LEFT);
 
-		return IX_SetDpad(hDev, DPAD_OFF);
+		return IX_SetDpad(hDev, XBTN_NONE);
 	}
 
 	return STATUS_INVALID_HANDLE;
@@ -1265,6 +1222,7 @@ VGENINTERFACE_API DWORD  SetDevPov(HDEVICE hDev, UINT nPov, FLOAT Value)
 } //extern "C"
 
 #pragma region Internal vXbox
+
 DWORD	IX_isVBusExists(void)
 {
 	DWORD Version;
@@ -1283,8 +1241,8 @@ DWORD	IX_GetNumEmptyBusSlots(UCHAR * nSlots)
 	if (res == ERROR_SUCCESS) return STATUS_SUCCESS;
 	if (res == XOUTPUT_VBUS_NOT_CONNECTED) return STATUS_NO_SUCH_DEVICE;
 	if (res == XOUTPUT_VBUS_INDEX_OUT_OF_RANGE) return STATUS_INVALID_PARAMETER;
-	
-	else return STATUS_IO_DEVICE_ERROR;		
+
+	else return STATUS_IO_DEVICE_ERROR;
 }
 
 DWORD	IX_isControllerPluggedIn(UINT UserIndex, PBOOL Exist)
@@ -1334,7 +1292,7 @@ BOOL	IX_isControllerOwned(HDEVICE hDev)
 	UINT UserIndex = GetDeviceId(hDev);
 	if (!UserIndex)
 		return FALSE;
-	
+
 	if (ERROR_SUCCESS == XOutputIsOwned(UserIndex - 1, &Owned))
 		return Owned;
 	else
@@ -1365,8 +1323,8 @@ DWORD	IX_PlugIn(UINT UserIndex)
 		if (res == XOUTPUT_VBUS_NOT_CONNECTED) return STATUS_NO_SUCH_DEVICE;
 		if (res == XOUTPUT_VBUS_INDEX_OUT_OF_RANGE) return STATUS_INVALID_PARAMETER;
 		else return STATUS_IO_DEVICE_ERROR;
-	}	
-		
+	}
+
 	// Wait for device to start - try up to 2 seconds
 	BYTE Led;
 	for (int i = 0; i < 2000; i++)
@@ -1391,7 +1349,7 @@ DWORD	IX_PlugIn(UINT UserIndex)
 	// Create the device data structure and insert it into the device-container
 	if (CreateDevice(vXbox, UserIndex))
 		return STATUS_SUCCESS;
-	
+
 	// Failed to create device
 	XOutputUnPlug(UserIndex - 1);
 	return STATUS_INVALID_HANDLE;
@@ -1462,7 +1420,7 @@ DWORD	IX_UnPlug(UINT UserIndex)
 	// If still exists - error
 	if (IX_isControllerPluggedIn(UserIndex))
 		return STATUS_TIMEOUT;
-	
+
 
 	// Get handle to device and destroy it
 	HDEVICE h = GetDevice(vXbox, UserIndex);
@@ -1511,6 +1469,8 @@ DWORD	IX_UnPlugForce(UINT UserIndex)
 	DestroyDevice(h);
 	return STATUS_SUCCESS;
 }
+
+// IX Reset                        ////////////////////////////////////////////////////////
 
 DWORD	IX_ResetController(HDEVICE hDev)
 {
@@ -1576,7 +1536,7 @@ DWORD	IX_ResetControllerBtns(HDEVICE hDev)
 		return STATUS_MEMORY_NOT_ALLOCATED;
 
 	// Change position value
-	position->wButtons &= 0x000F;
+	position->wButtons &= XBTN_DPAD_MASK;
 	res = XOutputSetState(UserIndex - 1, position);
 	if (res != ERROR_SUCCESS)
 	{
@@ -1609,7 +1569,7 @@ DWORD	IX_ResetControllerDPad(HDEVICE hDev)
 		return STATUS_MEMORY_NOT_ALLOCATED;
 
 	// Change position value
-	position->wButtons &= 0xFFF0;
+	position->wButtons &= ~XBTN_DPAD_MASK;
 	res = XOutputSetState(UserIndex - 1, position);
 	if (res != ERROR_SUCCESS)
 	{
@@ -1627,6 +1587,8 @@ DWORD	IX_ResetControllerDPad(UINT UserIndex)
 	return IX_ResetControllerDPad(GetDevice(vXbox, UserIndex));
 }
 
+// IX Buttons                        ////////////////////////////////////////////////////////
+
 DWORD	IX_SetBtn(HDEVICE hDev, BOOL Press, WORD Button, BOOL XInput)
 {
 	DWORD res;
@@ -1640,7 +1602,7 @@ DWORD	IX_SetBtn(HDEVICE hDev, BOOL Press, WORD Button, BOOL XInput)
 	XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(hDev);
 	if (!position)
 		return STATUS_MEMORY_NOT_ALLOCATED;
-	
+
 	WORD Mask;
 	if (!XInput)
 		Mask = g_xButtons[Button - 1];
@@ -1649,7 +1611,7 @@ DWORD	IX_SetBtn(HDEVICE hDev, BOOL Press, WORD Button, BOOL XInput)
 
 	// Change position value
 	position->wButtons &= ~Mask;
-	position->wButtons |= Mask*Press;
+	position->wButtons |= Mask * Press;
 	res = XOutputSetState(UserIndex - 1, position);
 	if (res != ERROR_SUCCESS)
 	{
@@ -1698,22 +1660,22 @@ BOOL	IX_SetBtnBack(HDEVICE hDev, BOOL Press)
 	return IX_SetBtn(hDev, Press, XINPUT_GAMEPAD_BACK);
 }
 
-BOOL	IX_SetBtnLT(HDEVICE hDev, BOOL Press) // Left Thumb/Stick 
+BOOL	IX_SetBtnLT(HDEVICE hDev, BOOL Press) // Left Thumb/Stick
 {
 	return IX_SetBtn(hDev, Press, XINPUT_GAMEPAD_LEFT_THUMB);
 }
 
-BOOL	IX_SetBtnRT(HDEVICE hDev, BOOL Press) // Right Thumb/Stick 
+BOOL	IX_SetBtnRT(HDEVICE hDev, BOOL Press) // Right Thumb/Stick
 {
 	return IX_SetBtn(hDev, Press, XINPUT_GAMEPAD_RIGHT_THUMB);
 }
 
-BOOL	IX_SetBtnLB(HDEVICE hDev, BOOL Press) // Left Bumper 
+BOOL	IX_SetBtnLB(HDEVICE hDev, BOOL Press) // Left Bumper
 {
 	return IX_SetBtn(hDev, Press, XINPUT_GAMEPAD_LEFT_SHOULDER);
 }
 
-BOOL	IX_SetBtnRB(HDEVICE hDev, BOOL Press) // Right Bumper 
+BOOL	IX_SetBtnRB(HDEVICE hDev, BOOL Press) // Right Bumper
 {
 	return IX_SetBtn(hDev, Press, XINPUT_GAMEPAD_RIGHT_SHOULDER);
 }
@@ -1748,29 +1710,31 @@ BOOL	IX_SetBtnBack(UINT UserIndex, BOOL Press)
 	return IX_SetBtn(UserIndex, Press, XINPUT_GAMEPAD_BACK);
 }
 
-BOOL	IX_SetBtnLT(UINT UserIndex, BOOL Press) // Left Thumb/Stick 
+BOOL	IX_SetBtnLT(UINT UserIndex, BOOL Press) // Left Thumb/Stick
 {
 	return IX_SetBtn(UserIndex, Press, XINPUT_GAMEPAD_LEFT_THUMB);
 }
 
-BOOL	IX_SetBtnRT(UINT UserIndex, BOOL Press) // Right Thumb/Stick 
+BOOL	IX_SetBtnRT(UINT UserIndex, BOOL Press) // Right Thumb/Stick
 {
 	return IX_SetBtn(UserIndex, Press, XINPUT_GAMEPAD_RIGHT_THUMB);
 }
 
-BOOL	IX_SetBtnLB(UINT UserIndex, BOOL Press) // Left Bumper 
+BOOL	IX_SetBtnLB(UINT UserIndex, BOOL Press) // Left Bumper
 {
 	return IX_SetBtn(UserIndex, Press, XINPUT_GAMEPAD_LEFT_SHOULDER);
 }
 
-BOOL	IX_SetBtnRB(UINT UserIndex, BOOL Press) // Right Bumper 
+BOOL	IX_SetBtnRB(UINT UserIndex, BOOL Press) // Right Bumper
 {
 	return IX_SetBtn(UserIndex, Press, XINPUT_GAMEPAD_RIGHT_SHOULDER);
 }
 
 #endif // SPECIFICBUTTONS
 
-DWORD	IX_SetTriggerL(HDEVICE hDev, BYTE Value) // Left Trigger
+// IX Axis                //////////////////////////////////////////////
+
+DWORD	IX_SetAxis(HDEVICE hDev, HID_USAGES Axis, SHORT Value)
 {
 	DWORD res;
 
@@ -1784,7 +1748,29 @@ DWORD	IX_SetTriggerL(HDEVICE hDev, BYTE Value) // Left Trigger
 		return STATUS_MEMORY_NOT_ALLOCATED;
 
 	// Change position value
-	position->bLeftTrigger = Value;
+	switch (Axis) {
+		case HID_USAGE_LT:
+			position->bLeftTrigger = Value & 0xFF;
+			break;
+		case HID_USAGE_RT:
+			position->bRightTrigger = Value & 0xFF;
+			break;
+		case HID_USAGE_LX:
+			position->sThumbLX = Value;
+			break;
+		case HID_USAGE_LY:
+			position->sThumbLY = Value;
+			break;
+		case HID_USAGE_RX:
+			position->sThumbRX = Value;
+			break;
+		case HID_USAGE_RY:
+			position->sThumbRY = Value;
+			break;
+		default:
+			return STATUS_INVALID_PARAMETER_2;
+	};
+
 	res = XOutputSetState(UserIndex - 1, position);
 	if (res != ERROR_SUCCESS)
 	{
@@ -1795,6 +1781,16 @@ DWORD	IX_SetTriggerL(HDEVICE hDev, BYTE Value) // Left Trigger
 	}
 	else
 		return STATUS_SUCCESS;
+}
+
+DWORD	IX_SetAxis(UINT UserIndex, HID_USAGES Axis, SHORT Value) // Left Trigger
+{
+	return IX_SetAxis(GetDevice(vXbox, UserIndex), Axis, Value);
+}
+
+DWORD	IX_SetTriggerL(HDEVICE hDev, BYTE Value) // Left Trigger
+{
+	return IX_SetAxis(hDev, HID_USAGE_LT, Value);
 }
 
 DWORD	IX_SetTriggerL(UINT UserIndex, BYTE Value) // Left Trigger
@@ -1802,63 +1798,19 @@ DWORD	IX_SetTriggerL(UINT UserIndex, BYTE Value) // Left Trigger
 	return IX_SetTriggerL(GetDevice(vXbox, UserIndex), Value);
 }
 
-DWORD	IX_SetTriggerR(HDEVICE hDev, BYTE Value) // Right Trigger -- position->bRightTrigger = Value;
+DWORD	IX_SetTriggerR(HDEVICE hDev, BYTE Value) // Right Trigger
 {
-	DWORD res;
-
-	UINT UserIndex = GetDeviceId(hDev);
-	if (!UserIndex)
-		return STATUS_INVALID_PARAMETER_1;
-
-	// Get  position
-	XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(hDev);
-	if (!position)
-		return STATUS_MEMORY_NOT_ALLOCATED;
-
-	// Change position value
-	position->bRightTrigger = Value;
-	res = XOutputSetState(UserIndex - 1, position);
-	if (res != ERROR_SUCCESS)
-	{
-		if (res == XOUTPUT_VBUS_NOT_CONNECTED) return STATUS_NO_SUCH_DEVICE;
-		if (XOUTPUT_VBUS_DEVICE_NOT_READY) return STATUS_DEVICE_NOT_READY;
-		if (res == XOUTPUT_VBUS_INDEX_OUT_OF_RANGE) return STATUS_INVALID_PARAMETER;
-		else return STATUS_IO_DEVICE_ERROR;
-	}
-	else
-		return STATUS_SUCCESS;
+	return IX_SetAxis(hDev, HID_USAGE_RT, Value);
 }
 
-DWORD	IX_SetTriggerR(UINT UserIndex, BYTE Value) // Left Trigger
+DWORD	IX_SetTriggerR(UINT UserIndex, BYTE Value) // Right Trigger
 {
 	return IX_SetTriggerR(GetDevice(vXbox, UserIndex), Value);
 }
 
 DWORD	IX_SetAxisLx(HDEVICE hDev, SHORT Value) // Left Stick X
 {
-	DWORD res;
-
-	UINT UserIndex = GetDeviceId(hDev);
-	if (!UserIndex)
-		return STATUS_INVALID_PARAMETER_1;
-
-	// Get  position
-	XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(hDev);
-	if (!position)
-		return STATUS_MEMORY_NOT_ALLOCATED;
-
-	// Change position value
-	position->sThumbLX = Value;
-	res = XOutputSetState(UserIndex - 1, position);
-	if (res != ERROR_SUCCESS)
-	{
-		if (res == XOUTPUT_VBUS_NOT_CONNECTED) return STATUS_NO_SUCH_DEVICE;
-		if (XOUTPUT_VBUS_DEVICE_NOT_READY) return STATUS_DEVICE_NOT_READY;
-		if (res == XOUTPUT_VBUS_INDEX_OUT_OF_RANGE) return STATUS_INVALID_PARAMETER;
-		else return STATUS_IO_DEVICE_ERROR;
-	}
-	else
-		return STATUS_SUCCESS;
+	return IX_SetAxis(hDev, HID_USAGE_LX, Value);
 }
 
 DWORD	IX_SetAxisLx(UINT UserIndex, SHORT Value) // Left Stick X
@@ -1868,29 +1820,7 @@ DWORD	IX_SetAxisLx(UINT UserIndex, SHORT Value) // Left Stick X
 
 DWORD	IX_SetAxisLy(HDEVICE hDev, SHORT Value) // Left Stick Y
 {
-	DWORD res;
-
-	UINT UserIndex = GetDeviceId(hDev);
-	if (!UserIndex)
-		return STATUS_INVALID_PARAMETER_1;
-
-	// Get  position
-	XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(hDev);
-	if (!position)
-		return STATUS_MEMORY_NOT_ALLOCATED;
-
-	// Change position value
-	position->sThumbLY = Value;
-	res = XOutputSetState(UserIndex - 1, position);
-	if (res != ERROR_SUCCESS)
-	{
-		if (res == XOUTPUT_VBUS_NOT_CONNECTED) return STATUS_NO_SUCH_DEVICE;
-		if (XOUTPUT_VBUS_DEVICE_NOT_READY) return STATUS_DEVICE_NOT_READY;
-		if (res == XOUTPUT_VBUS_INDEX_OUT_OF_RANGE) return STATUS_INVALID_PARAMETER;
-		else return STATUS_IO_DEVICE_ERROR;
-	}
-	else
-		return STATUS_SUCCESS;
+	return IX_SetAxis(hDev, HID_USAGE_LY, Value);
 }
 
 DWORD	IX_SetAxisLy(UINT UserIndex, SHORT Value) // Left Stick Y
@@ -1900,29 +1830,7 @@ DWORD	IX_SetAxisLy(UINT UserIndex, SHORT Value) // Left Stick Y
 
 DWORD	IX_SetAxisRx(HDEVICE hDev, SHORT Value) // Right Stick X
 {
-	DWORD res;
-
-	UINT UserIndex = GetDeviceId(hDev);
-	if (!UserIndex)
-		return STATUS_INVALID_PARAMETER_1;
-
-	// Get  position
-	XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(hDev);
-	if (!position)
-		return STATUS_MEMORY_NOT_ALLOCATED;
-
-	// Change position value
-	position->sThumbRX = Value;
-	res = XOutputSetState(UserIndex - 1, position);
-	if (res != ERROR_SUCCESS)
-	{
-		if (res == XOUTPUT_VBUS_NOT_CONNECTED) return STATUS_NO_SUCH_DEVICE;
-		if (XOUTPUT_VBUS_DEVICE_NOT_READY) return STATUS_DEVICE_NOT_READY;
-		if (res == XOUTPUT_VBUS_INDEX_OUT_OF_RANGE) return STATUS_INVALID_PARAMETER;
-		else return STATUS_IO_DEVICE_ERROR;
-	}
-	else
-		return STATUS_SUCCESS;
+	return IX_SetAxis(hDev, HID_USAGE_RX, Value);
 }
 
 DWORD	IX_SetAxisRx(UINT UserIndex, SHORT Value) // Right Stick X
@@ -1932,29 +1840,7 @@ DWORD	IX_SetAxisRx(UINT UserIndex, SHORT Value) // Right Stick X
 
 DWORD	IX_SetAxisRy(HDEVICE hDev, SHORT Value) // Right Stick Y
 {
-	DWORD res;
-
-	UINT UserIndex = GetDeviceId(hDev);
-	if (!UserIndex)
-		return STATUS_INVALID_PARAMETER_1;
-
-	// Get  position
-	XINPUT_GAMEPAD * position = (XINPUT_GAMEPAD *)GetDevicePos(hDev);
-	if (!position)
-		return STATUS_MEMORY_NOT_ALLOCATED;
-
-	// Change position value
-	position->sThumbRY = Value;
-	res = XOutputSetState(UserIndex - 1, position);
-	if (res != ERROR_SUCCESS)
-	{
-		if (res == XOUTPUT_VBUS_NOT_CONNECTED) return STATUS_NO_SUCH_DEVICE;
-		if (XOUTPUT_VBUS_DEVICE_NOT_READY) return STATUS_DEVICE_NOT_READY;
-		if (res == XOUTPUT_VBUS_INDEX_OUT_OF_RANGE) return STATUS_INVALID_PARAMETER;
-		else return STATUS_IO_DEVICE_ERROR;
-	}
-	else
-		return STATUS_SUCCESS;
+	return IX_SetAxis(hDev, HID_USAGE_RY, Value);
 }
 
 DWORD	IX_SetAxisRy(UINT UserIndex, SHORT Value) // Right Stick Y
@@ -1962,6 +1848,11 @@ DWORD	IX_SetAxisRy(UINT UserIndex, SHORT Value) // Right Stick Y
 	return IX_SetAxisRy(GetDevice(vXbox, UserIndex), Value);
 }
 
+// IX DPAD               ///////////////////////////////////////
+
+// This lets any of the 4 dpov button bits be set at any one time but will not allow
+// individual bits to be set one at a time, like you get with the actual "button" types.
+// Subsequent calls to this function will clear any previously set DPOV button bits (0xF)
 DWORD	IX_SetDpad(HDEVICE hDev, UCHAR Value) // DPAD Set Value
 {
 	DWORD res;
@@ -1976,7 +1867,7 @@ DWORD	IX_SetDpad(HDEVICE hDev, UCHAR Value) // DPAD Set Value
 		return STATUS_MEMORY_NOT_ALLOCATED;
 
 	// Change position value
-	position->wButtons &= 0xFFF0;
+	position->wButtons &= ~XBTN_DPAD_MASK;
 	position->wButtons |= Value;
 	res = XOutputSetState(UserIndex - 1, position);
 	if (res != ERROR_SUCCESS)
@@ -1997,53 +1888,55 @@ DWORD	IX_SetDpad(UINT UserIndex, UCHAR Value) // DPAD Set Value
 
 BOOL	IX_SetDpadUp(HDEVICE hDev)
 {
-	return IX_SetDpad(hDev, DPAD_UP);
+	return IX_SetDpad(hDev, XBTN_DPAD_UP);
 }
 
 BOOL	IX_SetDpadUp(UINT UserIndex)
 {
-	return IX_SetDpad(UserIndex, DPAD_UP);
+	return IX_SetDpad(UserIndex, XBTN_DPAD_UP);
 }
 
 BOOL	IX_SetDpadRight(HDEVICE hDev)
 {
-	return IX_SetDpad(hDev, DPAD_RIGHT);
+	return IX_SetDpad(hDev, XBTN_DPAD_RIGHT);
 }
 
 BOOL	IX_SetDpadRight(UINT UserIndex)
 {
-	return IX_SetDpad(UserIndex, DPAD_RIGHT);
+	return IX_SetDpad(UserIndex, XBTN_DPAD_RIGHT);
 }
 
 BOOL	IX_SetDpadDown(HDEVICE hDev)
 {
-	return IX_SetDpad(hDev, DPAD_DOWN);
+	return IX_SetDpad(hDev, XBTN_DPAD_DOWN);
 }
 
 BOOL	IX_SetDpadDown(UINT UserIndex)
 {
-	return IX_SetDpad(UserIndex, DPAD_DOWN);
+	return IX_SetDpad(UserIndex, XBTN_DPAD_DOWN);
 }
 
 BOOL	IX_SetDpadLeft(HDEVICE hDev)
 {
-	return IX_SetDpad(hDev, DPAD_LEFT);
+	return IX_SetDpad(hDev, XBTN_DPAD_LEFT);
 }
 
 BOOL	IX_SetDpadLeft(UINT UserIndex)
 {
-	return IX_SetDpad(UserIndex, DPAD_LEFT);
+	return IX_SetDpad(UserIndex, XBTN_DPAD_LEFT);
 }
 
 BOOL	IX_SetDpadOff(HDEVICE hDev)
 {
-	return IX_SetDpad(hDev, DPAD_OFF);
+	return IX_SetDpad(hDev, XBTN_NONE);
 }
 
 BOOL	IX_SetDpadOff(UINT UserIndex)
 {
-	return IX_SetDpad(UserIndex, DPAD_OFF);
+	return IX_SetDpad(UserIndex, XBTN_NONE);
 }
+
+// IX Get infos                 /////////////////////////////////////////
 
 DWORD	IX_GetLedNumber(UINT UserIndex, PBYTE pLed)
 {
@@ -2101,6 +1994,7 @@ DWORD	IX_GetVibration(UINT UserIndex, PXINPUT_VIBRATION pVib)
 #pragma endregion Internal vXbox
 
 #pragma region Internal vJoy
+
 HDEVICE	IJ_AcquireVJD(UINT rID)
 {
 	BOOL acq = vJoyNS::AcquireVJD(rID);
@@ -2123,10 +2017,8 @@ DWORD IJ_RelinquishVJD(HDEVICE hDev)			// Relinquish the specified vJoy Device.
 
 BOOL IJ_isVJDExists(HDEVICE hDev)
 {
-	if (ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)))
-		return vJoyNS::isVJDExists(GetDeviceId(hDev));
-	else
-		return FALSE;
+	return ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)) &&
+		vJoyNS::isVJDExists(GetDeviceId(hDev));
 }
 
 VjdStat IJ_GetVJDStatus(HDEVICE hDev)
@@ -2137,23 +2029,17 @@ VjdStat IJ_GetVJDStatus(HDEVICE hDev)
 		return VJD_STAT_UNKN;
 }
 
-BOOL IJ_GetVJDAxisExist(HDEVICE hDev, UINT Axis)
-{	
-	BOOL bRes;
-
-	if (ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)))
-		bRes = vJoyNS::GetVJDAxisExist(GetDeviceId(hDev), Axis+ HID_USAGE_X-1);
-	if (bRes == TRUE)
-		return bRes;
-	
-	return FALSE;
+BOOL IJ_GetVJDAxisExist(HDEVICE hDev, HID_USAGES Axis)
+{
+	return ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)) &&
+		vJoyNS::GetVJDAxisExist(GetDeviceId(hDev), Axis);
 }
 
 int	IJ_GetVJDButtonNumber(HDEVICE hDev)	// Get the number of buttons defined in the specified VDJ
 {
 	if (ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)))
 		return vJoyNS::GetVJDButtonNumber(GetDeviceId(hDev));
-	return FALSE;
+	return 0;
 }
 
 int IJ_GetVJDDiscPovNumber(HDEVICE hDev)   // Get the number of POVs defined in the specified device
@@ -2170,52 +2056,35 @@ int IJ_GetVJDContPovNumber(HDEVICE hDev)	// Get the number of descrete-type POV 
 	return 0;
 }
 
-BOOL IJ_SetAxis(LONG Value, HDEVICE hDev, UINT Axis)		// Write Value to a given axis defined in the specified VDJ 
+BOOL IJ_SetAxis(LONG Value, HDEVICE hDev, HID_USAGES Axis)		// Write Value to a given axis defined in the specified VDJ
 {
-	if (ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)))
-		return vJoyNS::SetAxis(Value,GetDeviceId(hDev), Axis);
-	return FALSE;
+	return ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)) &&
+		vJoyNS::SetAxis(Value,GetDeviceId(hDev), Axis);
 }
 
-BOOL IJ_SetBtn(BOOL Value, HDEVICE hDev, UCHAR nBtn)		// Write Value to a given button defined in the specified VDJ 
+BOOL IJ_SetBtn(BOOL Value, HDEVICE hDev, UCHAR nBtn)		// Write Value to a given button defined in the specified VDJ
 {
-	if (ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)))
-		return vJoyNS::SetBtn(Value,GetDeviceId(hDev), nBtn);
-	return FALSE;
+	return ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)) &&
+		 vJoyNS::SetBtn(Value,GetDeviceId(hDev), nBtn);
 }
 
-BOOL IJ_SetDiscPov(int Value, HDEVICE hDev, UCHAR nPov)	// Write Value to a given descrete POV defined in the specified VDJ 
+BOOL IJ_SetDiscPov(int Value, HDEVICE hDev, UCHAR nPov)	// Write Value to a given descrete POV defined in the specified VDJ
 {
-	UINT id;
-	
-	if (ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)))
-	{ 
-		id = GetDeviceId(hDev);
-		if (vJoyNS::GetVJDDiscPovNumber(id) == 0)
-			return FALSE;
-		return vJoyNS::SetDiscPov(Value, id, nPov);
-	}
-	return FALSE;
+	return IJ_GetVJDDiscPovNumber(hDev) > 0 &&
+		vJoyNS::SetDiscPov(Value, GetDeviceId(hDev), nPov);
 }
 
-BOOL IJ_SetContPov(DWORD Value, HDEVICE hDev, UCHAR nPov)	// Write Value to a given continuous POV defined in the specified VDJ 
+BOOL IJ_SetContPov(DWORD Value, HDEVICE hDev, UCHAR nPov)	// Write Value to a given continuous POV defined in the specified VDJ
 {
-	UINT id;
-	
-	if (ValidDev(hDev) && SUCCEEDED(isDevice_vJoy(hDev)))
-	{ 
-		id = GetDeviceId(hDev);
-		if (vJoyNS::GetVJDContPovNumber(id) == 0)
-			return FALSE;
-		return vJoyNS::SetContPov(Value, id, nPov);
-	}
-	return FALSE;
+	return IJ_GetVJDContPovNumber(hDev) > 0 &&
+		vJoyNS::SetContPov(Value, GetDeviceId(hDev), nPov);
 }
 
 #pragma endregion
 
 
 #pragma region Helper Functions
+
 HDEVICE CreateDevice(DevType Type, UINT i)
 {
 	// If found then exit
@@ -2342,53 +2211,33 @@ BOOL ConvertPosition_vJoy2vXbox(void *vJoyPos, void *vXboxPos)
 	/////  Axes
 	position->sThumbLX = 2 * ((SHORT)inPos->wAxisX - 1) - 32767;
 	position->sThumbLY = 2 * ((SHORT)inPos->wAxisY - 1) - 32767;
+	position->bLeftTrigger = ((SHORT)inPos->wAxisZ - 1) / 128;
 	position->sThumbRX = 2 * ((SHORT)inPos->wAxisXRot - 1) - 32767;
 	position->sThumbRY = 2 * ((SHORT)inPos->wAxisYRot - 1) - 32767;
-	position->bLeftTrigger = ((SHORT)inPos->wAxisZRot - 1) / 128;
-	position->bRightTrigger = ((SHORT)inPos->wAxisZ - 1) / 128;
+	position->bRightTrigger = ((SHORT)inPos->wAxisZRot - 1) / 128;
 
-	//// Buttons
-	// Button 1 ==> Button A
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 1, XINPUT_GAMEPAD_A);
-	// Button 2 ==> Button B
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 2, XINPUT_GAMEPAD_B);
-	// Button 3  ==> Button X
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 3, XINPUT_GAMEPAD_X);
-	// Button 4  ==> Button Y
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 4, XINPUT_GAMEPAD_Y);
-	// Button 5  ==> Button LB (Left Bumper)
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 5, XINPUT_GAMEPAD_LEFT_SHOULDER);
-	// Button 6  ==> Button RB (Right Bumper)
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 6, XINPUT_GAMEPAD_RIGHT_SHOULDER);
-	// Button 7  ==> Back
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 7, XINPUT_GAMEPAD_BACK);
-	// Button 8  ==> Start
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 8, XINPUT_GAMEPAD_START);
-	// Button 9  ==> Guide
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 9, XINPUT_GAMEPAD_GUIDE);
-	// Button 10  ==> Button LSB (Left Stick Button)
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 10, XINPUT_GAMEPAD_LEFT_THUMB);
-	// Button 11 ==> Button RSB (Right Stick Button)
-	position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, 11, XINPUT_GAMEPAD_RIGHT_THUMB);
-
-	// Dpad / Discrete POV #1
-	switch (inPos->bHats)
+	//// Dpad / Discrete POV #1
+	switch (inPos->bHats & 0xF)
 	{
 		case 0:
-			position->wButtons |= XINPUT_GAMEPAD_DPAD_UP;
+			position->wButtons |= XBTN_DPAD_UP;
 			break;
 		case 1:
-			position->wButtons |= XINPUT_GAMEPAD_DPAD_RIGHT;
+			position->wButtons |= XBTN_DPAD_RIGHT;
 			break;
 		case 2:
-			position->wButtons |= XINPUT_GAMEPAD_DPAD_DOWN;
+			position->wButtons |= XBTN_DPAD_DOWN;
 			break;
 		case 4:
-			position->wButtons |= XINPUT_GAMEPAD_DPAD_LEFT;
+			position->wButtons |= XBTN_DPAD_LEFT;
 			break;
 		default:
-			position->wButtons &= 0xFFF0;
+			position->wButtons &= ~XBTN_DPAD_MASK;
 	}
+
+	// Buttons (may override hats)
+	for (UINT i = 0; i < XINPUT_NUM_BUTTONS; ++i)
+		position->wButtons = ConvertButton(inPos->lButtons, position->wButtons, i + 1, g_xButtons[i]);
 
 	return TRUE;
 }

@@ -8,18 +8,11 @@
 *																			*
 *****************************************************************************/
 
-// Must Include <Xinput.h>
 
-#define DPAD_UP XINPUT_GAMEPAD_DPAD_UP
-#define DPAD_DOWN XINPUT_GAMEPAD_DPAD_DOWN
-#define DPAD_LEFT XINPUT_GAMEPAD_DPAD_LEFT
-#define DPAD_RIGHT XINPUT_GAMEPAD_DPAD_RIGHT
-#define DPAD_OFF 0
-
-// The following ifdef block is the standard way of creating macros which make exporting 
+// The following ifdef block is the standard way of creating macros which make exporting
 // from a DLL simpler. All files within this DLL are compiled with the VGENINTERFACE_EXPORTS
 // symbol defined on the command line. This symbol should not be defined on any project
-// that uses this DLL. This way any other project whose source files include this file see 
+// that uses this DLL. This way any other project whose source files include this file see
 // VGENINTERFACE_API functions as being imported from a DLL, whereas this DLL sees symbols
 // defined with this macro as being exported.
 #ifdef VGENINTERFACE_EXPORTS
@@ -47,8 +40,56 @@ enum VjdStat  /* Declares an enumeration data type */
 };
 #endif
 
-// Device Type
-enum DevType { vJoy, vXbox };
+namespace vGenNS {
+
+	// Device Type
+	enum DevType { vJoy, vXbox };
+
+	enum XINPUT_BUTTONS : USHORT
+	{
+		XBTN_NONE           = 0,
+		XBTN_DPAD_UP        = 0x0001,
+		XBTN_DPAD_DOWN      = 0x0002,
+		XBTN_DPAD_LEFT      = 0x0004,
+		XBTN_DPAD_RIGHT     = 0x0008,
+		XBTN_START          = 0x0010,
+		XBTN_BACK           = 0x0020,
+		XBTN_LEFT_THUMB     = 0x0040,
+		XBTN_RIGHT_THUMB    = 0x0080,
+		XBTN_LEFT_SHOULDER  = 0x0100,
+		XBTN_RIGHT_SHOULDER = 0x0200,
+		XBTN_GUIDE          = 0x0400,
+		XBTN_A              = 0x1000,
+		XBTN_B              = 0x2000,
+		XBTN_X              = 0x4000,
+		XBTN_Y              = 0x8000,
+
+		XBTN_DPAD_UP_RIGHT   = XBTN_DPAD_UP | XBTN_DPAD_RIGHT,
+		XBTN_DPAD_UP_LEFT    = XBTN_DPAD_UP | XBTN_DPAD_LEFT,
+		XBTN_DPAD_DOWN_RIGHT = XBTN_DPAD_DOWN | XBTN_DPAD_RIGHT,
+		XBTN_DPAD_DOWN_LEFT  = XBTN_DPAD_DOWN | XBTN_DPAD_LEFT,
+		XBTN_DPAD_MASK       = 0x000F,
+	};
+
+	enum HID_USAGES : USHORT
+	{
+		HID_USAGE_X   = 0x30,
+		HID_USAGE_LX  = HID_USAGE_X,
+		HID_USAGE_Y   = 0x31,
+		HID_USAGE_LY  = HID_USAGE_Y,
+		HID_USAGE_Z   = 0x32,
+		HID_USAGE_LT  = HID_USAGE_Z,
+		HID_USAGE_RX  = 0x33,
+		HID_USAGE_RY  = 0x34,
+		HID_USAGE_RZ  = 0x35,
+		HID_USAGE_RT  = HID_USAGE_RZ,
+		HID_USAGE_SL0 = 0x36,
+		HID_USAGE_SL1 = 0x37,
+		HID_USAGE_WHL = 0x38,
+		HID_USAGE_POV = 0x39,
+	};
+
+}
 
 #ifndef VJOYHEADERUSED
 
@@ -236,27 +277,26 @@ typedef void (CALLBACK *FfbGenCB)(PVOID, PVOID);
 #pragma endregion
 
 #endif // !VJOYHEADERUSED
+
 //////////////////////////////////////////////////////////////////////////////////////
-/// 
+///
 ///  vJoy interface fuctions (Native vJoy)
-///  If you wish to write GENERIC code (Used for vJoy AND vXbox) 
+///  If you wish to write GENERIC code (Used for vJoy AND vXbox)
 ///  then you can use this set of interface functions
 ///
 ///  vJoy device ID range: 1-16
 ///  vXbox device ID range: 1001-1004
 ///
-///  Axis & Button Mapping:
-///  According to https://msdn.microsoft.com/en-us/library/windows/desktop/hh405052(v=vs.85).aspx
-///  (Assuming XUSB subtype  1 - Gamepad)
-///  
-///  vJoy		|	vXbox
+///  Axis & Button Mapping from vJoy to Gamepad:
+///
+///  vJoy      | Xbox
 ///  -----------------------
 ///  X         | X
 ///  Y         | Y
 ///  Z         | Trigger (R)
-///  Rx        | Rx
-///  Ry        | Ry
-///  Rz        | Trigger (L)
+///  RX        | Rx
+///  RY        | Ry
+///  RZ        | Trigger (L)
 ///  Button 1  | A
 ///  Button 2  | B
 ///  Button 3  | X
@@ -268,18 +308,22 @@ typedef void (CALLBACK *FfbGenCB)(PVOID, PVOID);
 ///  Button 9  | Guide
 ///  Button 10 | Left Thumb (LT)
 ///  Button 11 | Right Thumb (RT)
+///  Button 12 | DPad Up
+///  Button 13 | DPad Down
+///  Button 14 | DPad Left
+///  Button 15 | DPad Right
 ///
 ///  Axis Serial number is:
-///		| vJoy		|	vXbox
+///    | vJoy    |vXbox
 ///  --------------------------
-///  1	| X       | X
-///  2	| Y       | Y
-///  3	| Z       | Trigger (R)
-///  4	| Rx      | Rx
-///  5	| Ry      | Ry
-///  6	| Rz      | Trigger (L)
-///  7	| Slider0 | -
-///  8	| Slider1 | -
+///  1 | X       | X
+///  2 | Y       | Y
+///  3 | Z       | Trigger (R)
+///  4 | RX      | Rx
+///  5 | RY      | Ry
+///  6 | RZ      | Trigger (L)
+///  7 | Slider0 | -
+///  8 | Slider1 | -
 ///
 
 extern "C" {
@@ -299,16 +343,16 @@ extern "C" {
 	VGENINTERFACE_API	BOOL	__cdecl	GetNumberExistingVJD(int * n);	// What is the number of vJoy devices currently enabled
 
 	/////	vJoy/vXbox Device properties
-	VGENINTERFACE_API int	__cdecl  GetVJDButtonNumber(UINT rID);	// Get the number of buttons defined in the specified VDJ
-	VGENINTERFACE_API int	__cdecl  GetVJDDiscPovNumber(UINT rID);	// Get the number of descrete-type POV hats defined in the specified VDJ
-	VGENINTERFACE_API int	__cdecl  GetVJDContPovNumber(UINT rID);	// Get the number of descrete-type POV hats defined in the specified VDJ
-	VGENINTERFACE_API BOOL	__cdecl  GetVJDAxisExist(UINT rID, UINT Axis); // Test if given axis defined in the specified VDJ
-	VGENINTERFACE_API BOOL	__cdecl  GetVJDAxisMax(UINT rID, UINT Axis, LONG * Max); // Get logical Maximum value for a given axis defined in the specified VDJ
-	VGENINTERFACE_API BOOL	__cdecl  GetVJDAxisMin(UINT rID, UINT Axis, LONG * Min); // Get logical Minimum value for a given axis defined in the specified VDJ
-	VGENINTERFACE_API BOOL	__cdecl GetVJDAxisRange(UINT rID, UINT Axis, LONG * Min, LONG * Max);
-	VGENINTERFACE_API VjdStat	__cdecl	GetVJDStatus(UINT rID);			// Get the status of the specified vJoy Device.
-	VGENINTERFACE_API BOOL	__cdecl	isVJDExists(UINT rID);					// TRUE if the specified vJoy Device exists
-	VGENINTERFACE_API int	__cdecl	GetOwnerPid(UINT rID);					// Reurn owner's Process ID if the specified vJoy Device exists
+	VGENINTERFACE_API int     __cdecl GetVJDButtonNumber(UINT rID);	// Get the number of buttons defined in the specified VDJ
+	VGENINTERFACE_API int     __cdecl GetVJDDiscPovNumber(UINT rID);	// Get the number of descrete-type POV hats defined in the specified VDJ
+	VGENINTERFACE_API int     __cdecl GetVJDContPovNumber(UINT rID);	// Get the number of descrete-type POV hats defined in the specified VDJ
+	VGENINTERFACE_API BOOL    __cdecl GetVJDAxisExist(UINT rID, vGenNS::HID_USAGES Axis); // Test if given axis defined in the specified VDJ
+	VGENINTERFACE_API BOOL    __cdecl GetVJDAxisMax(UINT rID, vGenNS::HID_USAGES Axis, LONG * Max); // Get logical Maximum value for a given axis defined in the specified VDJ
+	VGENINTERFACE_API BOOL    __cdecl GetVJDAxisMin(UINT rID, vGenNS::HID_USAGES Axis, LONG * Min); // Get logical Minimum value for a given axis defined in the specified VDJ
+	VGENINTERFACE_API BOOL    __cdecl GetVJDAxisRange(UINT rID, vGenNS::HID_USAGES Axis, LONG * Min, LONG * Max);
+	VGENINTERFACE_API VjdStat __cdecl GetVJDStatus(UINT rID);			// Get the status of the specified vJoy Device.
+	VGENINTERFACE_API BOOL    __cdecl isVJDExists(UINT rID);					// TRUE if the specified vJoy Device exists
+	VGENINTERFACE_API int     __cdecl GetOwnerPid(UINT rID);					// Reurn owner's Process ID if the specified vJoy Device exists
 
 	/////	Write access to vJoy Device - Basic
 	VGENINTERFACE_API BOOL		__cdecl	AcquireVJD(UINT rID);				// Acquire the specified vJoy Device.
@@ -326,10 +370,10 @@ extern "C" {
 	VGENINTERFACE_API BOOL		__cdecl	ResetPovs(UINT rID);		// Reset all POV Switches (To -1) in the specified VDJ
 
 	// Write data
-	VGENINTERFACE_API BOOL		__cdecl	SetAxis(LONG Value, UINT rID, UINT Axis);		// Write Value to a given axis defined in the specified VDJ 
-	VGENINTERFACE_API BOOL		__cdecl	SetBtn(BOOL Value, UINT rID, UCHAR nBtn);		// Write Value to a given button defined in the specified VDJ 
-	VGENINTERFACE_API BOOL		__cdecl	SetDiscPov(int Value, UINT rID, UCHAR nPov);	// Write Value to a given descrete POV defined in the specified VDJ 
-	VGENINTERFACE_API BOOL		__cdecl	SetContPov(DWORD Value, UINT rID, UCHAR nPov);	// Write Value to a given continuous POV defined in the specified VDJ 
+	VGENINTERFACE_API BOOL		__cdecl	SetAxis(LONG Value, UINT rID, vGenNS::HID_USAGES Axis);		// Write Value to a given axis defined in the specified VDJ
+	VGENINTERFACE_API BOOL		__cdecl	SetBtn(BOOL Value, UINT rID, UCHAR nBtn);		// Write Value to a given button defined in the specified VDJ
+	VGENINTERFACE_API BOOL		__cdecl	SetDiscPov(int Value, UINT rID, UCHAR nPov);	// Write Value to a given descrete POV defined in the specified VDJ
+	VGENINTERFACE_API BOOL		__cdecl	SetContPov(DWORD Value, UINT rID, UCHAR nPov);	// Write Value to a given continuous POV defined in the specified VDJ
 
 	// FFB function
 	VGENINTERFACE_API FFBEType	__cdecl	FfbGetEffect();	// Returns effect serial number if active, 0 if inactive
@@ -367,7 +411,7 @@ extern "C" {
 #pragma region vXbox API
 
 	//////////////////////////////////////////////////////////////////////////////////////
-	/// 
+	///
 	///  vXbox interface fuctions
 	///
 	///  Device range: 1-4 (Not necessarily related to Led number)
@@ -382,7 +426,7 @@ extern "C" {
 	// Device Status (Plugin/Unplug and check ownership)
 	VGENINTERFACE_API	DWORD		__cdecl isControllerPluggedIn(UINT UserIndex, PBOOL Exist);
 	VGENINTERFACE_API	DWORD		__cdecl isControllerOwned(UINT UserIndex, PBOOL Exist);
-	VGENINTERFACE_API DWORD		__cdecl GetVXAxisRange(UINT UserIndex, UINT Axis, LONG * Min, LONG * Max);
+	VGENINTERFACE_API	DWORD		__cdecl GetVXAxisRange(UINT UserIndex, vGenNS::HID_USAGES Axis, LONG * Min, LONG * Max);
 	VGENINTERFACE_API	DWORD		__cdecl PlugIn(UINT UserIndex);
 	VGENINTERFACE_API	DWORD		__cdecl PlugInNext(UINT * UserIndex);
 	VGENINTERFACE_API	DWORD		__cdecl UnPlug(UINT UserIndex);
@@ -414,6 +458,7 @@ extern "C" {
 #endif // SPECIFICBUTTONS
 
 	// Trigger/Axis functions: Set value in the range
+	VGENINTERFACE_API	DWORD		__cdecl SetGamepadAxis(UINT UserIndex, vGenNS::HID_USAGES Axis, SHORT Value);
 	VGENINTERFACE_API	DWORD		__cdecl SetTriggerL(UINT UserIndex, BYTE Value);
 	VGENINTERFACE_API	DWORD		__cdecl SetTriggerR(UINT UserIndex, BYTE Value);
 	VGENINTERFACE_API	DWORD		__cdecl	SetAxisLx(UINT UserIndex, SHORT Value); // Left Stick X
@@ -438,16 +483,16 @@ extern "C" {
 
 #pragma region Common API
 	// Device Administration, Manipulation and Information
-	VGENINTERFACE_API DWORD 		__cdecl	AcquireDev(UINT DevId, DevType dType, HDEVICE * hDev);	// Acquire a Device.
+	VGENINTERFACE_API DWORD 		__cdecl	AcquireDev(UINT DevId, vGenNS::DevType dType, HDEVICE * hDev);	// Acquire a Device.
 	VGENINTERFACE_API DWORD			__cdecl	RelinquishDev(HDEVICE hDev);			// Relinquish a Device.
-	VGENINTERFACE_API DWORD			__cdecl GetDevType(HDEVICE hDev, DevType * dType);	// Get device type (vJoy/vXbox)
+	VGENINTERFACE_API DWORD			__cdecl GetDevType(HDEVICE hDev, vGenNS::DevType * dType);	// Get device type (vJoy/vXbox)
 	VGENINTERFACE_API DWORD			__cdecl GetDevNumber(HDEVICE hDev, UINT * dNumber);	// If vJoy: Number=Id; If vXbox: Number=Led#
 	VGENINTERFACE_API DWORD			__cdecl GetDevId(HDEVICE hDev, UINT * dID);					// Return Device ID to be used with vXbox API and Backward compatibility API
-	VGENINTERFACE_API DWORD			__cdecl isDevOwned(UINT DevId, DevType dType, BOOL * Owned);	// Is device plugged-in/Configured by this feeder
-	VGENINTERFACE_API DWORD			__cdecl isDevExist(UINT DevId, DevType dType, BOOL * Exist);	// Is device plugged-in/Configured
-	VGENINTERFACE_API DWORD			__cdecl isDevFree(UINT DevId, DevType dType, BOOL * Free);	// Is device unplugged/Free
-	VGENINTERFACE_API DWORD			__cdecl	GetDevHandle(UINT DevId, DevType dType, HDEVICE * hDev);// Return device handle from Device ID and Device type
-	VGENINTERFACE_API DWORD			__cdecl isAxisExist(HDEVICE hDev, UINT nAxis, BOOL * Exist);	// Does Axis exist. See above table
+	VGENINTERFACE_API DWORD			__cdecl isDevOwned(UINT DevId, vGenNS::DevType dType, BOOL * Owned);	// Is device plugged-in/Configured by this feeder
+	VGENINTERFACE_API DWORD			__cdecl isDevExist(UINT DevId, vGenNS::DevType dType, BOOL * Exist);	// Is device plugged-in/Configured
+	VGENINTERFACE_API DWORD			__cdecl isDevFree(UINT DevId, vGenNS::DevType dType, BOOL * Free);	// Is device unplugged/Free
+	VGENINTERFACE_API DWORD			__cdecl	GetDevHandle(UINT DevId, vGenNS::DevType dType, HDEVICE * hDev);// Return device handle from Device ID and Device type
+	VGENINTERFACE_API DWORD			__cdecl isAxisExist(HDEVICE hDev, vGenNS::HID_USAGES Axis, BOOL * Exist);	// Does Axis exist. See above table
 	VGENINTERFACE_API DWORD			__cdecl GetDevButtonN(HDEVICE hDev, UINT * nBtn);			// Get number of buttons in device
 	VGENINTERFACE_API DWORD			__cdecl GetDevHatN(HDEVICE hDev, UINT * nHat);				// Get number of Hat Switches in device
 	VGENINTERFACE_API DWORD			__cdecl	GetPosition(UINT rID, PVOID pData);	          //  Read current positions vJoy device
@@ -455,7 +500,7 @@ extern "C" {
 
 	// Position Setting
 	VGENINTERFACE_API DWORD			__cdecl SetDevButton(HDEVICE hDev, UINT Button, BOOL Press);
-	VGENINTERFACE_API DWORD			__cdecl SetDevAxis(HDEVICE hDev, UINT Axis, FLOAT Value);
+	VGENINTERFACE_API DWORD			__cdecl SetDevAxis(HDEVICE hDev, vGenNS::HID_USAGES Axis, FLOAT Value);
 	VGENINTERFACE_API DWORD			__cdecl SetDevPov(HDEVICE hDev, UINT nPov, FLOAT Value);
 #pragma endregion
 } // extern "C"

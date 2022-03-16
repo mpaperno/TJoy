@@ -10,7 +10,7 @@ Copyright (c) Shaul Eizikovich.  All rights reserved.
 Module Name:
 
     public.h
-    
+
 Abstract:
 
     Public header file for the vJoy project
@@ -128,7 +128,6 @@ DEFINE_GUID(GUID_DEVINTERFACE_VJOY, 0x781EF630, 0x72B2, 0x11d2, 0xB8, 0x52, 0x00
 
 #define MAX_N_DEVICES	16 // Maximum number of vJoy devices
 
-
 typedef struct _HID_DEVICE_ATTRIBUTES {
 
     ULONG           Size;
@@ -225,25 +224,13 @@ typedef struct _JOYSTICK_POSITION_V2
 	DWORD	bHatsEx1;	// Lower 4 bits: HAT switch or 16-bit of continuous HAT switch
 	DWORD	bHatsEx2;	// Lower 4 bits: HAT switch or 16-bit of continuous HAT switch
 	DWORD	bHatsEx3;	// Lower 4 bits: HAT switch or 16-bit of continuous HAT switch LONG lButtonsEx1; // Buttons 33-64
-	
+
 	/// JOYSTICK_POSITION_V2 Extenssion
 	LONG lButtonsEx1; // Buttons 33-64
 	LONG lButtonsEx2; // Buttons 65-96
 	LONG lButtonsEx3; // Buttons 97-128
 } JOYSTICK_POSITION_V2, *PJOYSTICK_POSITION_V2;
 
-
-// HID Descriptor definitions - Axes
-#define HID_USAGE_X		0x30
-#define HID_USAGE_Y		0x31
-#define HID_USAGE_Z		0x32
-#define HID_USAGE_RX	0x33
-#define HID_USAGE_RY	0x34
-#define HID_USAGE_RZ	0x35
-#define HID_USAGE_SL0	0x36
-#define HID_USAGE_SL1	0x37
-#define HID_USAGE_WHL	0x38
-#define HID_USAGE_POV	0x39
 
 // HID Descriptor definitions - FFB Effects
 #define HID_USAGE_CONST 0x26    //    Usage ET Constant Force

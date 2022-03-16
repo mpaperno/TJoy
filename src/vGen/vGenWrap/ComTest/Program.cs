@@ -24,7 +24,7 @@ namespace ComTest
             Char last_c = '\0';
             uint id = 0;
             string line;
-            DevType type = DevType.vJoy;
+            VGEN_DEV_TYPE type = VGEN_DEV_TYPE.vJoy;
             int hDev=0;
 
             joystick = new vGen();
@@ -37,7 +37,7 @@ namespace ComTest
             ConsoleKeyInfo key = Console.ReadKey();
             last_c = Char.ToUpper(key.KeyChar);
             if (last_c == 'X')
-                type = DevType.vXbox;
+                type = VGEN_DEV_TYPE.vXbox;
 
             //get device ID
             Console.WriteLine("\n\nDevice ID [1-16]?");
@@ -55,12 +55,12 @@ namespace ComTest
                 Console.WriteLine("\n\nDevice ID negative, exiting?");
                 return;
             }
-            if ((type == DevType.vXbox) && (id > 4))
+            if ((type == VGEN_DEV_TYPE.vXbox) && (id > 4))
             {
                 Console.WriteLine("\n\nDevice ID is greater than 4, exiting?");
                 return;
             }
-            if ((type == DevType.vJoy) && (id > 16))
+            if ((type == VGEN_DEV_TYPE.vJoy) && (id > 16))
             {
                 Console.WriteLine("\n\nDevice ID is greater than 16, exiting?");
                 return;
@@ -112,14 +112,14 @@ namespace ComTest
             Console.Write("              ");
             for (uint i=1; i<=4; i++)
             {
-                joystick.isDevFree(i, DevType.vXbox, ref Free);
+                joystick.isDevFree(i, VGEN_DEV_TYPE.vXbox, ref Free);
                 if (Free)
                 {
                     Console.Write("F  ");
                     continue;
                 }
-                joystick.isDevExist(i, DevType.vXbox, ref Exist);
-                joystick.isDevOwned(i, DevType.vXbox, ref Owned);
+                joystick.isDevExist(i, VGEN_DEV_TYPE.vXbox, ref Exist);
+                joystick.isDevOwned(i, VGEN_DEV_TYPE.vXbox, ref Owned);
                 if (Exist && Owned)
                 {
                     Console.Write("O  ");
@@ -140,14 +140,14 @@ namespace ComTest
             Console.Write("              ");
             for (uint i = 1; i <= 16; i++)
             {
-                joystick.isDevFree(i, DevType.vJoy, ref Free);
+                joystick.isDevFree(i, VGEN_DEV_TYPE.vJoy, ref Free);
                 if (Free)
                 {
                     Console.Write("F  ");
                     continue;
                 }
-                joystick.isDevExist(i, DevType.vJoy, ref Exist);
-                joystick.isDevOwned(i, DevType.vJoy, ref Owned);
+                joystick.isDevExist(i, VGEN_DEV_TYPE.vJoy, ref Exist);
+                joystick.isDevOwned(i, VGEN_DEV_TYPE.vJoy, ref Owned);
                 if (Exist && Owned)
                 {
                     Console.Write("O  ");
@@ -170,10 +170,10 @@ namespace ComTest
             string[] j_axes = new string[8] { " X ", " Y ", " Z ", "Rx ", "Ry ", "Rz ", "S1 ", "S2 " };
             string[] x_axes = new string[6] { " X ", " Y ", "TR ", "Rx ", "Ry ", "TL " };
             bool Exist = false;
-            DevType type = DevType.vJoy;
+            VGEN_DEV_TYPE type = VGEN_DEV_TYPE.vJoy;
             int lim=6;
 
-            if (type == DevType.vJoy)
+            if (type == VGEN_DEV_TYPE.vJoy)
                 lim = 8;
 
 
@@ -182,10 +182,10 @@ namespace ComTest
             Console.WriteLine("");
             for (uint i=1; i<=lim;i++)
             {
-                joystick.isAxisExist(hDev, i, ref Exist);
+                joystick.isAxisExist(hDev, (HID_USAGES)(i + (uint)HID_USAGES.HID_USAGE_X - 1), ref Exist);
                 if (Exist)
                 {
-                    if (type == DevType.vJoy)
+                    if (type == VGEN_DEV_TYPE.vJoy)
                         Console.Write(j_axes[i - 1]);
                     else
                         Console.Write(x_axes[i - 1]);
@@ -225,7 +225,7 @@ namespace ComTest
             Console.WriteLine("\nValue (0-100)");
             string s_val = Console.ReadLine();
 
-            joystick.SetDevAxis(hDev, Convert.ToUInt32(key.KeyChar.ToString()), (float)Convert.ToDouble(s_val));
+            joystick.SetDevAxis(hDev, (HID_USAGES)(Convert.ToUInt32(key.KeyChar.ToString()) + (uint)HID_USAGES.HID_USAGE_X - 1), (float)Convert.ToDouble(s_val));
         }
 
         static void SetButton(int hDev)
