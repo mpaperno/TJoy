@@ -68,7 +68,7 @@ namespace TouchPortalSDK.Clients
                 // In any case set socket to non-blocking after Connect, for simplicity.
                 //_socket.Blocking = false;
 
-                _logger?.LogInformation("TouchPortal connected.");
+                _logger?.LogDebug("TouchPortal connected.");
 
                 return _socket.Connected;
             }
@@ -95,7 +95,7 @@ namespace TouchPortalSDK.Clients
         public bool Listen()
         {
             //Create listener thread:
-            _logger?.LogInformation("Starting Listener thread...");
+            _logger?.LogDebug("Starting Listener thread...");
             _listenerThread.Start();
 
             return _listenerThread.IsAlive;
@@ -128,8 +128,8 @@ namespace TouchPortalSDK.Clients
             }
             catch (Exception exception)
             {
-                _logger?.LogError(exception, "SendMessage exception in _streamWriter.WriteLineAsync()");
-                _messageHandler.OnError("Connection Terminated during socket write operation (most likely Touch Portal quit without a goodbye)", exception);
+                _logger?.LogError(exception, "SendMessage exception in WriteLine()");
+                //_messageHandler.OnError("Connection Terminated during socket write operation (most likely Touch Portal quit without a goodbye)", exception);
                 return false;
             }
         }
@@ -137,17 +137,20 @@ namespace TouchPortalSDK.Clients
         /// <inheritdoc cref="ITouchPortalSocket" />
         public void CloseSocket()
         {
+            // pprevent recursion
+            if (_cts.IsCancellationRequested)
+                return;
             _cts.Cancel();
             // Note we must check _socket.Connected here in case we are exiting due to a socket error,
             // in which case this method is likely being called from within that thread (via handler.OnError()). Hence if we try to
             // wait for the thread to exit, that's just not going to work. We rest assured that it will exit once we're done here.
             // OTOH if we're just disconnecting "nicely" then we do want to make sure the listener thread finished up after we cancelled the token.
-            if (_socket.Connected && _listenerThread.IsAlive && !_listenerThread.Join(_socket.ReceiveTimeout * 3)) {
+            if (_socket != null && _socket.Connected && _listenerThread.IsAlive && !_listenerThread.Join(_socket.ReceiveTimeout * 3)) {
                 _logger.LogWarning("Network stream is hung up, interrupting the listener thread.");
                 _listenerThread.Interrupt();
             }
-            _socket.Shutdown(SocketShutdown.Both);
-            _socket.Close();
+            _socket?.Shutdown(SocketShutdown.Both);
+            _socket?.Close();
         }
 
         private void WriteLine(ReadOnlySpan<byte> msgbytes)
