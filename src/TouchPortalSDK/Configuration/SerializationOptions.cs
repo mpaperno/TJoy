@@ -12,7 +12,8 @@ namespace TouchPortalSDK.Configuration
             Converters =
             {
                 new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
-                new SettingsConverter()
+                new SettingsConverter(),
+                new ActionDataConverter()
             }
         };
     }

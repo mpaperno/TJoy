@@ -26,29 +26,29 @@ namespace TouchPortalSDK.Messages.Events
         public string Id { get; set; }
 
         /// <summary>
-        /// Data is name/value pairs of options the user has selected for this action.
+        /// Data is name = value pairs dictionary of options the user has selected for this action.
         /// Ex. data1: dropdown1
         ///     data2: dropdown2
         /// </summary>
-        public IReadOnlyCollection<ActionDataSelected> Data { get; set; }
+        public ActionData Data { get; set; }
 
         /// <summary>
         /// Indexer to get data values.
         /// </summary>
         /// <param name="dataId">the id of the datafield.</param>
         /// <returns>the value of the data field as string or null if not exists</returns>
-        public string this[string dataId]
-            => GetValue(dataId);
+        public string this[string dataId] => GetValue(dataId);
 
         /// <summary>
         /// Returns the value of the selected item in an action data field.
         /// This value can be null in some cases, and will be null if data field is miss written.
         /// </summary>
         /// <param name="dataId">the id of the datafield.</param>
+        /// <param name="defaultValue">Default value to return if the dataId wasn't found.</param>
         /// <returns>the value of the data field as string or null if not exists</returns>
         public string GetValue(string dataId, string defaultValue = null) {
             try {
-                return Data?.SingleOrDefault(data => data.Id == dataId)?.Value ?? defaultValue;
+                return Data?.GetValueOrDefault(dataId, defaultValue) ?? defaultValue;
             }
             catch { return defaultValue; }
         }
