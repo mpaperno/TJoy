@@ -9,7 +9,8 @@
 ## TJoy Touch Portal Plugin
 
 This project is currently implemented as a "plugin" for the [Touch Portal](https://www.touch-portal.com) macro launcher software,
-designed for integrating with virtual gaming controllers. It currently fully supports the [vJoy](https://github.com/njz3/vJoy) virtual joystick driver,
+designed for integrating with virtual gaming controllers. It currently fully supports the [vJoy](https://github.com/jshafer817/vJoy) virtual joystick driver,
+[vXBox](https://github.com/shauleiz/ScpVBus) (a.k.a _ScpVbus_) virtual XBox 360 gamepad driver,
 with support for [ViGEm Bus](https://github.com/ViGEm/ViGEmBus) (XBox 360 and DualShock 4 controller emulation) in the works.
 
 This project is in the beginning phase so please bear with me while I expand the documentation, refine features, or fix bugs.
@@ -17,9 +18,11 @@ Your testing and feedback is important, please help!
 
 ## Features
 
-* Supports all controls provided by joystick driver:
-  * `vJoy`: up to 16 axes, 4 continuous (360 degree) or 4-way POV hats, and 128 buttons.
-* Use Touch Portal Actions and Sliders for all joystick controls (except joystick buttons currently do not have a slider input).
+* Supports all controls provided by joystick driver(s):
+  * `vJoy`: Up to 16 joystick devices, each with up to 8 axes, 4 continuous (360 degree) or 4-way POV hats, and 128 buttons.
+  * `vXbox`: Up to 4 "XBox 360" type gamepads each with 4 joystick axes, 2 slider (trigger) axes, one 8-way D-Pad, and 11 other buttons.
+  * (That's 152 axes, 68 8-way D-Pads, and 2,092 possible buttons, in case you were wondering :)
+* Use Touch Portal Actions and Sliders for all joystick controls (joystick buttons are actions only).
 * Multiple options for each joystick control. Click, hold, or toggle buttons/hats, adjust axis range and precision,
   reverse axis direction, set up custom mixes, button sequences, and much more.
 * Control multiple joystick buttons/axes/hats simultaneously (usually up to 10, depending on your touchscreen and device performance).
@@ -29,51 +32,73 @@ Your testing and feedback is important, please help!
   of an axis and a "fine" slider which controls a smaller range of the same axis. Linked controls are
   updated in real-time.
 * Optional reporting of current joystick axis positions and button states at a configurable update frequency.
-* Connect and disconnect to joystick driver on demand (via an action) and see current connection status (via a state).
+* Connect and disconnect to joystick driver on demand (automatically or via an action) and monitor current connection status via events.
 
 
 ## Examples
 
-We need some... for now check what's in the [assets](https://github.com/mpaperno/TJoy/tree/main/assets) folder in this repo.
+Check what's in the [assets](https://github.com/mpaperno/TJoy/tree/main/assets) folder in this repo. There are a few demo/test pages with screenshots
+and a small icon pack. These are not included with the release download, so download them separately from that folder if you want.
 
 
 ## Setup
 
+### Supported Virtual Joystick/Gamepad Drivers
+
+  * **vJoy v2.1.x** series driver for virtual joysticks. Latest signed and working version is here: [v2.1.9.1](https://github.com/jshafer817/vJoy/releases/tag/v2.1.9.1).
+    * Reports are that it works on Windows 11, but it may need a few tries to install.  I have perosnally only tested on Windows 10 21H2.
+    * In theory _TJoy_ _should_ work with older 2.x versions but I haven't tested.
+    * **vJoy v2.2.x series drivers are currently only partially supported.** Specifically the joystick states are not available. It does not currently support Win11 either.
+      This is pending more testing and may change if it eventually gets fixed for Win11. I recommend using v2.1.9 for now.
+  * **vXBox v1.7.1.2** a.k.a `ScpVbus` by the author ov _vJoy_, for emulating up to 4 XBox-style Gamepads: [Download at https://github.com/shauleiz/ScpVBus/releases](https://github.com/shauleiz/ScpVBus/releases).
+  * Support for [ViGEm Bus](https://github.com/ViGEm/ViGEmBus) is planned for a future release.
+
 ### Requirements:
+* **One or more virtual joystick/gamepad driver** from the list of supported ones above. You **must** install driver(s) separately otherwise _TJoy_ can do nothing useful.
 * [Touch Portal](https://www.touch-portal.com) Pro (paid version) for Windows, v3.0.6 or newer.
-* **`vJoy` device driver**. You **must** install this separately otherwise this plugin can do nothing useful.
-  * Currently the latest signed version I can find is [v2.2.1.1](https://github.com/njz3/vJoy/releases) from https://github.com/njz3/vJoy which works fine on my **Windows 10** 21H2.
-  * For **Windows 11** it seems like [v2.1.9.1](https://github.com/jshafer817/vJoy/releases/tag/v2.1.9.1) from the original author works better. It may need a few tries to install.
 * The latest version of this plugin: get the `TJoy-TouchPortal-Plugin-X.X.X.X.tpp` file from the latest release on the [Releases](https://github.com/mpaperno/TJoy/releases) page.
 
 ### Install:
-1. The plugin is distributed and installed as a standard Touch Portal `.tpp` plugin file. If you know how to import a plugin,
-just do that and skip to step 4. There is also a [short guide](https://www.touch-portal.com/blog/post/tutorials/import-plugin-guide.php) on the Touch Portal site.
-2. Import the plugin:
+1. Install (or already have installed) one or more of the supported virtual joystick drivers listed above. Also of course you will need Touch Portal installed.
+2. The _TJoy_ plugin is distributed and installed as a standard Touch Portal `.tpp` plugin file. If you know how to import a plugin,
+just do that and skip to step 5. There is also a [short guide](https://www.touch-portal.com/blog/post/tutorials/import-plugin-guide.php) on the Touch Portal site.
+3. Import the plugin:
     1. Start _Touch Portal_ (if not already running).
     2. Click the "gear" icon at the top and select "Import plugin..." from the menu.
     3. Browse to where you downloaded this plugin's `.tpp` file and select it.
-3. Restart _Touch Portal_
+4. Restart _Touch Portal_
     * When prompted by _Touch Portal_ to trust the plugin startup script, select "Yes" (the source code is public!).
-4. Make sure `vJoy` driver is installed and at least one device is configured. If you are not familiar with vJoy setup,
+5. Make sure `vJoy` driver is installed and at least one device is configured. If you are not familiar with vJoy setup,
   it's easy (there is a configuration app available once the driver is installed) but there are also many tutorials available online.
-5. In Touch Portal, open the __Settings__ page (gear icon), navigate to the __Plug-ins__ page, then select `TJoy Touch Portal Plugin`
+6. In Touch Portal, open the __Settings__ page (gear icon), navigate to the __Plug-ins__ page, then select `TJoy Touch Portal Plugin`
   from the dropdown list.  Enter the number of your configured `vJoy` device (typically `1`) in the `vJoy Device ID` field
   and hit the _Save_ button.
-6. That's it for the configuration, now you're ready to create some joystick controls and use the plugin!
+7. That's it for the configuration, now you're ready to create some joystick controls and use the plugin!
 
 ### Configure
 Several settings are available in the _Touch Portal_ _Settings_ window (select _Plug-ins_ on the left, then
 _TJoy _Touch Portal_ Plugin_ from the dropdown menu). The options are as follows:
 
-* `vJoy Device ID`: The number of the `vJoy` device configured on your system which you would like to use. Enter zero
-  to disable the vJoy connection entirely.
+* `Default Device`: The name/number of the default device configured on your system which you would like to use.
+  All the action and slider controls are set to use the "Default" device by default. If you mostly use one device,
+  this prevents the need to select a device for each action/slider. The default device will also be connected automatically
+  at startup.
+  * You can enter just a number here, for example for `vJoy` you would specify a device ID of 1-16, or for one of the gamepad
+    drivers it could be 1-4. If you have mutiple drivers installed, it will look a vJoy joystick first, then one of the gamepad
+    drivers.
+  * You can also be more specific here by providing a device (driver) name as well as a number. For example: `vJoy 1`.
+    The device names are as follows (case insensitive): `vJoy`, `vXBox` (future: `vbXBox`, and `vbDS4`)
+  * Enter zero to disable the default device feature. In this case you will need to select a specific device to use for every
+    action/slider you configure.
 
-* `vJoy State Update Interval`: The plugin can optionally send the current joystick axis and button values as TP
-States.  Enter how often to send these updates, in milliseconds, or enter zero to disable them.
+* `Auto-Connect Device On Action/Slider Event`: When enabled (`1`), activating an action (button) or moving a slider which
+  controls a non-connected device will automatically try connecting to it. Set to `0` to disable.
+
+* `Position State Report Update Interval`: The plugin can optionally send the current joystick axis and button values as TP
+  States.  Enter how often to send these updates, in milliseconds, or enter zero to disable them.
 
 * `Report Raw Axis Values`: When reporting is enabled (above), the axis values are by default sent as percentages.
-Enable this option to get the actual raw values instead (eg. for vJoy axis it's 0-32767).
+  Enable this option to get the actual raw values instead (eg. for vJoy axis it's 0-32767).
 
 * `Buttons To Report`: vJoy can have up to 128 buttons configured.  That's a lot of states to send over if you don't
   need them all. Here you can specify the maximum number of buttons to report (eg. `8` to get buttons 1-8),
@@ -83,13 +108,15 @@ Enable this option to get the actual raw values instead (eg. for vJoy axis it's 
 
 ## Known Issues
 
-**Please note that support for detecting when a slider has been released (is no longer being touched) is spotty at the moment.**
+* **Please note that support for detecting when a slider has been released (is no longer being touched) is spotty at the moment.**
 This is very useful in a joystick-like control, but due to some vague language on the Touch Portal API reference site,
 it turned out this feature maybe wasn't even meant to exist in TP.  It does, however, work most of the time
 if you pause for a fraction of a second before releasing the slider.
-
-I have a request in with the TP authors to improve this detection so it is more reliable, since it is vital for things
+  * I have a request in with the TP authors to improve this detection so it is more reliable, since it is vital for things
 like "self-centering" joystick axes. Please help by also requesting this feature on the Touch Portal Discord server or via other support means.
+
+* If you manually disconnect a vJoy device (via the provided action), the next attempt to re-connect to the same device will fail.
+  But tring to connect a second time will succeed.
 
 
 ## Update Notifications
@@ -113,13 +140,18 @@ I will also post update notices in the Touch Portal Discord server room [#tjoy-v
 ### Actions & Sliders
 
 There is an Action and a Slider for each type of joystick control (except there are no sliders for joystick buttons).
-In all cases the joystick control (axis/hat/button) being used must be configured in the vJoy driver. The axis and button
-selections presented in this plugin's actions and sliders are not specific to your current device (there is no way to do that with Touch Portal
-at this time). Also note that a vJoy device can be set up to have either discrete _or_ continuous POV hats, not both types at the same time.
 
-#### vJoy
+The first option in all actions/sliders is to select a Joystick/Gamepad Device to use, or the "Default" one as mentioned in the
+configuration notes above.  The list of devices should be populated with what is available on your system. For example if you have 4 vJoy
+joysticks configured, they will each show up as a choice (vJoy 1, vJoy 2, etc). If you have one of the gamepad drivers installed, there will
+be 4 gameapd devices to choose from.
 
-* `vJoy Button Action` - (Action only) Enter the button number to activate in the range of 1 through 128.
+After that you will choose a button/axis/DPad for the action/slider to work on.  This list is poulated based on the device you selected,
+and in some cases which actual controls are configured for that device (eg. vJoy devices can be configured with any number of axes, buttons, or POV hats).
+For gamepads you will always see all the available controls with appropriate names (eg. axis Lx or Ry, buttons A/X/LB, etc). Note that the gamepad
+D-Pad directions are also available as individual buttons.
+
+* `Button Action` - Select the button number or name to activate from the available choices.
   You also select the action, one of `Click`, `Down`, or `Up`. `Click` will issue a button press followed automatically by
   a release after 50ms.
   * To have it act as a "natural" button, which is pressed while you hold it and released when you let go,
@@ -127,34 +159,35 @@ at this time). Also note that a vJoy device can be set up to have either discret
     happen automatically whenever you release the button).  This also works for quick "clicks" (you don't have to hold the button),
     since the `On Hold` action fires on a quick touch as well.
 
-* `vJoy 4-way D-Pad/POV Hat` - (Action/Slider) If you set up your vJoy device to have "directional" POV hats, use these actions/sliders
-  to control them.
-  * The Action is very similar to the button action, except you select the POV hat number (1-4) from a choice list, and then select
-    the hat direction to use (`North`, `East`, `South`, `West` or `Center`). And like buttons you can select the action to perform,
-    `Click`, `Down`, or `Up`. The POV hat returns to the center position when all other directions are released.
+* `D-Pad / D-POV Hat Action/Slider` -  Controls a 4-way (vJoy) or 8-way (gamepad) D-Pad/Hat switch.
+  * The Action is very similar to the button action, except you also select the hat direction to activate from a list
+    (using 4 or 8 compass directions, plus "Center"). And like buttons you can select the action to perform,
+    `Click`, `Down`, or `Up`. The D-Pad/hat returns to the center position when all other directions are released.
     * Like joystick buttons, for a "natural" button feel use this action in the `On Hold` button setup with the `Down` action.
       The POV will return to center when you release the TP button.
+    * For vJoy, if your device is configured with a "Continous" type POV, this action will still work to control the 4 available directions.
   * A Slider can can be set up to control either the North/South buttons (`Y` axis), the East/West buttons (`X` axis), or go all the
-    way around the 4 directions, starting with either North/South and then going East/West (`YX` axis) or vice versa, East/West first
+    way around the 4/8 directions, starting with either North/South and then going East/West (`YX` axis) or vice versa, East/West first
     and then North/South (`XY` axis). The POV center position is always in the middle of the slider.
     * For example a vertical slider set up for the `Y` axis would press the `North` button when pushed up from center and would press the
       `South` POV direction when moved down from center. A horizontal slider set up for the `XY` axis would progressively press the
       `East->South->West->North` buttons when moved to the right of center, and would reverse that when moved left of center, i.e.
       `West->South->East->North`.
 
-* `vJoy Axis` - (Action/Slider) Controls any of the 16 available vJoy axes. At the basic level, an axis has a value range between 0 and 100
+* `Joystick Axis (Action/Slider)` -  Controls any of the available joystick/gamepad axes (this includes the "slider" triggers on gamepads).
+  At the basic level, an axis has a value range between 0 and 100
   which you can set with either actions or sliders.  The value is simply the percentage of the full range of travel available on the axis,
   with zero at the bottom/left and 100 at the top/right. Axis controls also introduce the concept of "reset position" which is where you
   would like the axis value to return to when you release the button/slider controlling that axis. It's like a spring on a joystick axis,
   except you have full control of it, including being able to disable that feature altogether.
-  * The Action basically lets you move an axis to any predetermined position in the 0-100 range. When used in the `On Hold` button setup you can set where
+  * The Action basically lets you move an axis to any predetermined position in the 0-100 range. When used in the `On Hold` button action, you can set where
     the axis returns to when you release the button (any of the presets like `Center`/`Min`/`Max`/etc, or a custom value). You may use fractional
     amounts for the value and reset fields, to allow for very precise axis positioning (more so than with sliders).
     * Note that you can use calculations in the action's axis value (and custom reset) fields. Basic math operators are supported, `+`, `-`, `*`, `/`, `%` (modulo)
       as well as grouping with parenthesis. Of special note is that one could use variables in these fields as a basis for calculations, such
       as any local variable or numeric state from a plugin. For example, using the current `RZ` axis' value as the basis to move the axis
       by 10% steps:<br/>
-      `${value:us.wdg.max.tpp.tjoy.vJoy.state.axis.RZ} + 10`
+      `${value:us.wdg.max.tpp.tjoy.state.vJoy.1.axis.RZ} + 10`
   * The Slider type of course moves a selected axis as one would expect. Things to note here is that you can reverse the movement direction
     (so sliding up/right will decrease the joystick axis value instead of increasing it), and that you can select the range of the axis
     you wish to move within. The default range is the full range of the axis, 0 - 100%, but you can also achieve more precise control over a smaller
@@ -167,35 +200,50 @@ at this time). Also note that a vJoy device can be set up to have either discret
         along the axis, and also allow the axis to "wrap" back to its starting point and continue up to maximum range a second time (if you don't want the
         wrapping effect then you need to calibrate  that axis in your game or Windows, same as above).
 
-* `vJoy Continous POV Hat` - (Action/Slider) Controls any of the 4 possible vJoy 360 degree "continuous" POV hats which move from center in any direction.
+* `Continous 360° POV Hat (Action/Slider)` - Controls any of the 4 possible vJoy 360 degree "continuous" POV hats which move from center in any direction.
   The operation is nearly identical to the Axis controls described above, with the main difference being that "center" on a POV hat is a neutral position,
   when no other input is being given.
   * Again the Action options here are the same as for Axis controls where you can just set whichever value you wish the POV to move to when the action
     button is pressed or held.  The only difference is that there is a special value of `-1` which means the center/neutral hat position.  Same as with
     Axis controls, when used in `On Hold` button setup you can set where the POV hat returns to once the button is released (typically to center/neutral).
-  * The Sliders also work the same way and you can again reverse the movement direction or set a smaller range of control for more precise movement.
+    * This action can also control a D-Pad/D-Pov hat if that is what the device has. This is mainly for convenience with vJoy devices so either type of POV
+      hat can be controlled with the same action.
+  * The Sliders also work the same way as axes and you can again reverse the movement direction or set a smaller range of control for more precise movement.
     The difference here is that a slider will return to it's center point when a POV hat is in the neutral position. Currently there is no way to specify which
     point of the slider is "neutral" and no way to explicitly center a POV hat with a slider except using the "reset to center" option which works upon
     release of the slider.
 
 #### Plugin
 
-* `Control vJoy Driver Connection` - (Action only) Lastly there is a simple action to control connection to vJoy device being used. If you share the vJoy
-  device with other controller ("feeder") software, this would be more convenient than disabling vJoy each time in this plugin's settings. You can `Toggle` the connection
-  or explicitly set it to `On` or `Off`. Also see the related `ID of currently connected vJoy device` state, below, to determine status of the current connection.
+* `Virtual Joystick Device Actions` - Lastly there is a simple action to control connection to devices being used.
+  * `Toggle`, `Connect` or `Disconnect` a specific device.
+  * `Reset` the device control to neutral/default values.
+  * `Refresh Report` to manually request a position state report (see States).
+  * `Force Unplug` a gamepad device. If it happens that a virtual gamepad doesn't get properly removed/freed (either by TJoy itsself or another application)
+    this is way to force its removal and will allow TJoy to use that device again.
 
 ### States
 
-#### Static States
-* `ID of currently connected vJoy device, 1-16 or 0 if none` - This will be `> 0` when a vJoy device is connected, and `= 0` (or `< 1`) when disconnected.
-  When connected, this should match the vJoy device number configured in this plugin's settings.
-
 #### Dynamic States
-These are only sent if enabled in the plugin's Settings. See notes for `vJoy State Update Interval` configuration, above.
+These are only sent if enabled in the plugin's Settings. See notes for `Position State Update Interval` configuration, above.
+
+`<Device>` represents a device name and number, eg. "vJoy 1" or "vXbox 3". `<N>` represents a number or a name of the control, eg. "1" or "A" for a button,
+"Y" or "Ly" for an axis, etc.
 * `<Device> - Button <N>` - `0` for off and `1` for on (pressed)
 * `<Device> - Axis <N>` - A value in the range of 0 - 100 reflecting axis position, or a "raw" range (0 - 32,767 for vJoy) if so configured in the plugin's settings.
-* `<Device> - Coninuous POV <N>` - A value in the range of 0 - 100 reflecting POV hat axis position or `-1` indicating neutral state. Or, a "raw" range (-1 through 35,900 for vJoy) if so configured in the plugin's settings.
-* `<Device> - Discrete POV <N>` - For vJoy this will be a number representing a direction, one of: `-1`: Center, `0`: North, `1`: East, `2`: South, `3`: West.
+* `<Device> - Continous Hat <N>` - A value in the range of 0 - 100 reflecting POV hat axis position or `-1` indicating neutral state. Or, a "raw" range
+  (-1 through 35,900 for vJoy) if so configured in the plugin's settings.
+* `<Device> - Discrete Hat <N>` - This will be a string representing a compass D-Pad/POV direction, one of `North`, `East`, `South`, `West` for 4-way hats (vJoy)
+  and adding `NorthEast`, `SouthEast`, `SouthWest` and `NorthWest` for 8-way gamepad D-Pads.
+
+#### Static States
+* `ID of the last connected/disconnected VJD` - There are 2 states which are used to trigger the Connected/Disconnected events (see below).
+  They briefly show the name of the last device which connected or disconnected, but are then quickly cleared so they not very useful in and of themselves.
+  Use the provided event instead to determine connection status.
+
+### Events
+* `Virtual Joystick Device Connected` - Allows choosing a device from a list and is triggered when the selected device connects.
+* `Virtual Joystick Device Disconnected` - Triggered when the selected device disconnects.
 
 
 ## Monitoring Joystick Inputs
@@ -242,11 +290,21 @@ https://github.com/mpaperno/
 
 Uses a modified version of [TouchPortalSDK for C#](https://github.com/oddbear/TouchPortalSDK)
 which is included in this repository and also [published here](https://github.com/mpaperno/TouchPortalSDK).
-It is used under the MIT License.
+It is used under the MIT license.
 
-Includes the vJoy Interface SDK library DLLs from https://github.com/njz3/vJoy
-(forked from https://github.com/shauleiz/vJoy) which are
-Copyright (c) 2017 Shaul Eizikovich and are used under the MIT license.
+Uses a modified version of [vGen](https://github.com/shauleiz/vGen) API layer for vJoy and vXBox devices,
+which is included in this repository.
+It is Copyright (c) 2017 Shaul Eizikovich and is used under the MIT license.
+
+Uses a slightly modified and custom built version of the v2.1.9.1 vJoy SDK from https://github.com/jshafer817/vJoy
+which is Copyright (c) 2017 Shaul Eizikovich and is used under the MIT license.
+
+Uses a rebuilt (but unchanged) version of the [XOutput API library](https://github.com/shauleiz/ScpVBus/tree/master/XOutput)
+which is Copyright (c) Benjamin Höglinger, Shaul Eizikovich and used under the GPL v3 license.
+
+Includes (though currently unused) 2 versions (forks) of the vJoy Interface SDK library DLLs,
+v 2.2.1 from https://github.com/njz3/vJoy and v2.1.9 from https://github.com/jshafer817/vJoy
+which are Copyright (c) 2017 Shaul Eizikovich and are used under the MIT license.
 
 Joystick icon from the original vJoy Touch Portal plugin by Ivan Sørensen
 (https://github.com/grawsom/vJoyTP), used under MIT licence.
