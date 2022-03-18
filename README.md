@@ -61,19 +61,13 @@ and a small icon pack. These are not included with the release download, so down
 ### Install:
 1. Install (or already have installed) one or more of the supported virtual joystick drivers listed above. Also of course you will need Touch Portal installed.
 2. The _TJoy_ plugin is distributed and installed as a standard Touch Portal `.tpp` plugin file. If you know how to import a plugin,
-just do that and skip to step 5. There is also a [short guide](https://www.touch-portal.com/blog/post/tutorials/import-plugin-guide.php) on the Touch Portal site.
+just do that and skip to the next _Configure_ section. There is also a [short guide](https://www.touch-portal.com/blog/post/tutorials/import-plugin-guide.php) on the Touch Portal site.
 3. Import the plugin:
     1. Start _Touch Portal_ (if not already running).
     2. Click the "gear" icon at the top and select "Import plugin..." from the menu.
     3. Browse to where you downloaded this plugin's `.tpp` file and select it.
 4. Restart _Touch Portal_
     * When prompted by _Touch Portal_ to trust the plugin startup script, select "Yes" (the source code is public!).
-5. Make sure `vJoy` driver is installed and at least one device is configured. If you are not familiar with vJoy setup,
-  it's easy (there is a configuration app available once the driver is installed) but there are also many tutorials available online.
-6. In Touch Portal, open the __Settings__ page (gear icon), navigate to the __Plug-ins__ page, then select `TJoy Touch Portal Plugin`
-  from the dropdown list.  Enter the number of your configured `vJoy` device (typically `1`) in the `vJoy Device ID` field
-  and hit the _Save_ button.
-7. That's it for the configuration, now you're ready to create some joystick controls and use the plugin!
 
 ### Configure
 Several settings are available in the _Touch Portal_ _Settings_ window (select _Plug-ins_ on the left, then
@@ -84,10 +78,10 @@ _TJoy _Touch Portal_ Plugin_ from the dropdown menu). The options are as follows
   this prevents the need to select a device for each action/slider. The default device will also be connected automatically
   at startup.
   * You can enter just a number here, for example for `vJoy` you would specify a device ID of 1-16, or for one of the gamepad
-    drivers it could be 1-4. If you have mutiple drivers installed, it will look a vJoy joystick first, then one of the gamepad
+    drivers it could be 1-4. If you have mutiple drivers installed, it will look for a vJoy joystick first, then one of the gamepad
     drivers.
-  * You can also be more specific here by providing a device (driver) name as well as a number. For example: `vJoy 1`.
-    The device names are as follows (case insensitive): `vJoy`, `vXBox` (future: `vbXBox`, and `vbDS4`)
+  * You can also be more specific here by providing a device (driver) name as well as a number. For example: `vJoy 1` or `vXBox 4`.
+    The device names are as follows (case insensitive): `vJoy`, `vXBox`
   * Enter zero to disable the default device feature. In this case you will need to select a specific device to use for every
     action/slider you configure.
 
@@ -138,6 +132,8 @@ I will also post update notices in the Touch Portal Discord server room [#tjoy-v
 ## Usage
 
 ### Actions & Sliders
+
+#### Virtual Joystick Device (VJD)
 
 There is an Action and a Slider for each type of joystick control (except there are no sliders for joystick buttons).
 
@@ -215,12 +211,12 @@ D-Pad directions are also available as individual buttons.
 
 #### Plugin
 
-* `Virtual Joystick Device Actions` - Lastly there is a simple action to control connection to devices being used.
+* `Virtual Joystick Device Actions` - Lastly there is a simple action to control the connection to devices being used as well as some other options:
   * `Toggle`, `Connect` or `Disconnect` a specific device.
-  * `Reset` the device control to neutral/default values.
+  * `Reset` all the device controls to neutral/default values (center axes, release buttons, etc).
   * `Refresh Report` to manually request a position state report (see States).
-  * `Force Unplug` a gamepad device. If it happens that a virtual gamepad doesn't get properly removed/freed (either by TJoy itsself or another application)
-    this is way to force its removal and will allow TJoy to use that device again.
+  * `Force Unplug` a gamepad device. If it happens that a virtual gamepad doesn't get properly removed/freed (either by _TJoy_ itsself or another application)
+    this is a way to force its removal and will allow _TJoy_ (or another application) to use that device again.
 
 ### States
 
@@ -237,9 +233,12 @@ These are only sent if enabled in the plugin's Settings. See notes for `Position
   and adding `NorthEast`, `SouthEast`, `SouthWest` and `NorthWest` for 8-way gamepad D-Pads.
 
 #### Static States
+* `Gamepad <N> LED Number` - This is the "player number" assigned by the Windows system to every plugged-in gamepad. This is not necessarily the same as the
+  device number you use to connect/control the gamepad (eg. gamepad "1" may get any of the 4 player numbers assigned to it, somewhat at random).
+  Each of the 4 gamepads sends one of these states. The possible values are 0 (off) and 1-4 when connected.
 * `ID of the last connected/disconnected VJD` - There are 2 states which are used to trigger the Connected/Disconnected events (see below).
   They briefly show the name of the last device which connected or disconnected, but are then quickly cleared so they not very useful in and of themselves.
-  Use the provided event instead to determine connection status.
+  Use the provided events instead to determine connection status.
 
 ### Events
 * `Virtual Joystick Device Connected` - Allows choosing a device from a list and is triggered when the selected device connects.
@@ -251,7 +250,7 @@ These are only sent if enabled in the plugin's Settings. See notes for `Position
 When setting up your joystick controls it can of course be very useful to see the actual result in real time. `vJoy` comes with a basic monitoring application
 (_vJoy Monitor_) which is suitable for this task. There are other similar tools available online.  You can also use the Windows gaming devices control panel
 feature to check the inputs, however be aware that this only updates the display when the windows has focus (it's easy to assume your inputs aren't working
-while it's actually just the status display that's not updating).
+while it's actually just the status display that's not updating). For gamepads, there aer several online checkers and a few apps available (search for example "gamepad test online").
 
 ## Troubleshooting (Log File)
 
