@@ -48,6 +48,7 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)inc</IncludePath>
     <OutDir>..\..\build\$(Platform)-$(Configuration)\</OutDir>
     <IntDir>..\..\build\obj\$(Platform)-$(Configuration)\$(ProjectName)\</IntDir>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -55,6 +56,7 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)inc</IncludePath>
     <OutDir>..\..\build\$(Platform)-$(Configuration)\</OutDir>
     <IntDir>..\..\build\obj\$(Platform)-$(Configuration)\$(ProjectName)\</IntDir>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -112,6 +114,7 @@
     <ClInclude Include="Private.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="versioninfo.h" />
     <ClInclude Include="vGenInterface.h" />
   </ItemGroup>
   <ItemGroup>
