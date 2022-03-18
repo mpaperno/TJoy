@@ -1,6 +1,6 @@
 {
 	"sdk": 5,
-	"version": 90100,
+	"version": 90500,
 	"name": "TJoy Touch Portal Plugin",
 	"id": "us.wdg.max.tpp.tjoy",
 	"configuration": {
@@ -10,7 +10,7 @@
 	"plugin_start_cmd" : "%TP_PLUGIN_FOLDER%TJoy-TouchPortal-Plugin/dist/TJoyTouchPortalPlugin.exe",
 	"settings": [
 		{
-			"name": "vJoy Device ID (1-16, 0 to disable)",
+			"name": "Default Device (0 to disable)",
 			"type": "number",
 			"default": "0",
 			"minValue": 0,
@@ -18,7 +18,15 @@
 			"readOnly": false
 		},
 		{
-			"name": "vJoy State Update Interval (ms)",
+			"name": "Auto-Connect Device On Action/Slider Event (0/1)",
+			"type": "number",
+			"default": "1",
+			"minValue": 0,
+			"maxValue": 1,
+			"readOnly": false
+		},
+		{
+			"name": "Position State Report Update Interval (ms)",
 			"type": "number",
 			"default": "0",
 			"minValue": 0,
@@ -36,56 +44,71 @@
 		{
 			"name": "Buttons To Report (max. # or range)",
 			"type": "text",
-			"default": "1-128",
+			"default": "1 - 16",
 			"readOnly": false
 		}
 	],
 	"categories": [
 		{
-			"id": "us.wdg.max.tpp.tjoy.vJoy",
-			"name": "vJoy",
+			"id": "us.wdg.max.tpp.tjoy.main",
+			"name": "TJoy",
 			"imagepath": "%TP_PLUGIN_FOLDER%TJoyTouchPortalPlugin/vJoyTP.png",
 			"actions": [
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.act.connection",
-					"prefix": "vJoy",
-					"name": "Control vJoy Driver Connection",
-					"description": "Turn on/off/toggle connection to the vJoy driver/device.",
+					"id": "us.wdg.max.tpp.tjoy.act.device",
+					"prefix": "TJoy",
+					"name": "Virtual Joystick Device Actions",
+					"description": "Perform an action on a VJD",
 					"type": "communicate",
 					"tryInline": true,
 					"hasHoldFunctionality": false,
-					"format": "vJoy Connection {$us.wdg.max.tpp.tjoy.vJoy.act.connection.value$}",
+					"format": "Device {$us.wdg.max.tpp.tjoy.act.device.devId$} {$us.wdg.max.tpp.tjoy.act.device.value$}",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.connection.value",
+							"id": "us.wdg.max.tpp.tjoy.act.device.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.device.value",
 							"label": "Perform Action",
 							"type": "choice",
-							"default": "Toggle",
-							"valueChoices": [ "Toggle", "On", "Off" ]
+							"default": "Disconnect",
+							"valueChoices": [ "Toggle Connection", "Connect", "Disconnect", "Reset", "Refresh Report", "Force Unplug" ]
 						}
 					]
 				},
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.act.button",
-					"prefix": "vJoy",
-					"name": "vJoy Button Action",
-					"description": "Activate a vJoy button.",
+					"id": "us.wdg.max.tpp.tjoy.act.button",
+					"prefix": "TJoy",
+					"name": "Button Action",
+					"description": "Activate a button on the device.",
 					"type": "communicate",
 					"tryInline": true,
 					"hasHoldFunctionality": true,
-					"format": "vJoy Button {$us.wdg.max.tpp.tjoy.vJoy.act.button.id$} {$us.wdg.max.tpp.tjoy.vJoy.act.button.value$}",
+					"format": "Device {$us.wdg.max.tpp.tjoy.act.button.devId$} Button {$us.wdg.max.tpp.tjoy.act.button.id$} {$us.wdg.max.tpp.tjoy.act.button.value$}",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.button.id",
-							"label": "vJoy Button number 1-128",
-							"type": "number",
-							"default": 1,
-							"minValue": 1,
-							"maxValue": 128,
-							"allowDecimals": false
+							"id": "us.wdg.max.tpp.tjoy.act.button.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.button.value",
+							"id": "us.wdg.max.tpp.tjoy.act.button.id",
+							"label": "vJoy Button number 1-128",
+							"type": "choice",
+							"default": "1",
+							"valueChoices": [
+								"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32",
+								"A", "B", "X", "Y", "LB", "RB", "Back", "Start", "Guide", "LT", "RT", "DP UP", "DP DOWN", "DP LEFT", "DP RIGHT"
+							]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.button.value",
 							"label": "Button Action",
 							"type": "choice",
 							"default": "Click",
@@ -94,31 +117,38 @@
 					]
 				},
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.act.dpov",
-					"prefix": "vJoy",
-					"name": "vJoy 4-way D-Pad/POV Hat Action",
-					"description": "Activate a 4-way d-pad/hat swtich.",
+					"id": "us.wdg.max.tpp.tjoy.act.dpov",
+					"prefix": "TJoy",
+					"name": "D-Pad / D-POV Hat Action",
+					"description": "Activate a D-pad or directional hat swtich.",
 					"type": "communicate",
 					"tryInline": true,
 					"hasHoldFunctionality": true,
-					"format": "vJoy POV {$us.wdg.max.tpp.tjoy.vJoy.act.dpov.id$} direction {$us.wdg.max.tpp.tjoy.vJoy.act.dpov.dir$} {$us.wdg.max.tpp.tjoy.vJoy.act.dpov.value$}",
+					"format": "Device {$us.wdg.max.tpp.tjoy.act.dpov.devId$} POV {$us.wdg.max.tpp.tjoy.act.dpov.id$} direction {$us.wdg.max.tpp.tjoy.act.dpov.dir$} {$us.wdg.max.tpp.tjoy.act.dpov.value$}",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.dpov.id",
-							"label": "vJoy POV number 1-4",
+							"id": "us.wdg.max.tpp.tjoy.act.dpov.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.dpov.id",
+							"label": "POV number (1-4 for vJoy, only 1 for gamepads)",
 							"type": "choice",
 							"default": "1",
 							"valueChoices": [ "1", "2", "3", "4" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.dpov.dir",
+							"id": "us.wdg.max.tpp.tjoy.act.dpov.dir",
 							"label": "POV Direction",
 							"type": "choice",
 							"default": "Center",
-							"valueChoices": [ "Center", "North", "East", "South", "West" ]
+							"valueChoices": [ "Center", "North", "East", "South", "West", "NorthEast", "SouthEast", "SouthWest", "NorthWest" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.dpov.value",
+							"id": "us.wdg.max.tpp.tjoy.act.dpov.value",
 							"label": "Button Action",
 							"type": "choice",
 							"default": "Click",
@@ -127,37 +157,44 @@
 					]
 				},
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.act.cpov",
-					"prefix": "vJoy",
-					"name": "vJoy Coninous POV Hat Action",
+					"id": "us.wdg.max.tpp.tjoy.act.cpov",
+					"prefix": "TJoy",
+					"name": "Continous 360° POV Hat Action",
 					"description": "Activate a continuous 360 degree hat swtich. Center value is -1 and position range is 0 - 100%.",
 					"type": "communicate",
 					"tryInline": true,
 					"hasHoldFunctionality": true,
-					"format": "Set\nvJoy POV {$us.wdg.max.tpp.tjoy.vJoy.act.cpov.id$} to\nvalue {$us.wdg.max.tpp.tjoy.vJoy.act.cpov.value$}% \nwith reset to {$us.wdg.max.tpp.tjoy.vJoy.act.cpov.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.vJoy.act.cpov.resetValue$}%)",
+					"format": "Set\nvDevice {$us.wdg.max.tpp.tjoy.act.cpov.devId$} POV {$us.wdg.max.tpp.tjoy.act.cpov.id$} to\nvalue {$us.wdg.max.tpp.tjoy.act.cpov.value$}% \nwith reset to {$us.wdg.max.tpp.tjoy.act.cpov.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.act.cpov.resetValue$}%)",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.cpov.id",
+							"id": "us.wdg.max.tpp.tjoy.act.cpov.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.cpov.id",
 							"label": "vJoy POV number 1-4",
 							"type": "choice",
 							"default": "1",
 							"valueChoices": [ "1", "2", "3", "4" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.cpov.value",
+							"id": "us.wdg.max.tpp.tjoy.act.cpov.value",
 							"label": "Value (-1 - 100)",
 							"type": "text",
 							"default": "0"
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.cpov.reset",
+							"id": "us.wdg.max.tpp.tjoy.act.cpov.reset",
 							"label": "Reset To",
 							"type": "choice",
 							"default": "Center",
 							"valueChoices": [ "None", "Center", "Max", "Min", "One Quarter", "Three Quarters", "Custom" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.cpov.resetValue",
+							"id": "us.wdg.max.tpp.tjoy.act.cpov.resetValue",
 							"label": "Custom Reset Value",
 							"type": "text",
 							"default": "-1"
@@ -165,43 +202,46 @@
 					]
 				},
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.act.axis",
-					"prefix": "vJoy",
-					"name": "vJoy Axis Action",
+					"id": "us.wdg.max.tpp.tjoy.act.axis",
+					"prefix": "TJoy",
+					"name": "Joystick Axis Action",
 					"description": "Set a joystick axis to a value. Value range is 0 - 100%.",
 					"type": "communicate",
 					"tryInline": true,
 					"hasHoldFunctionality": true,
-					"format": "Set\nvJoy Axis {$us.wdg.max.tpp.tjoy.vJoy.act.axis.id$} to\nvalue {$us.wdg.max.tpp.tjoy.vJoy.act.axis.value$}% \nwith reset to {$us.wdg.max.tpp.tjoy.vJoy.act.axis.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.vJoy.act.axis.resetValue$}%)",
+					"format": "Set\nDevice {$us.wdg.max.tpp.tjoy.act.axis.devId$} Axis {$us.wdg.max.tpp.tjoy.act.axis.id$} to\nvalue {$us.wdg.max.tpp.tjoy.act.axis.value$}% \nwith reset to {$us.wdg.max.tpp.tjoy.act.axis.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.act.axis.resetValue$}%)",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.axis.id",
+							"id": "us.wdg.max.tpp.tjoy.act.axis.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.axis.id",
 							"label": "vJoy Axis",
 							"type": "choice",
-							"default": "X",
 							"valueChoices": [
-								"X", "Y", "Z",
-								"RX", "RY", "RZ",
-								"SL0", "SL1", "WHL",
-								"AILERON", "RUDDER", "THROTTLE",
-								"ACCELERATOR", "BRAKE", "CLUTCH", "STEERING"
+								"X", "Y", "Z", "RX", "RY", "RZ", "SL0", "SL1",
+								"Lx", "Ly", "LT", "Rx", "Ry", "RT"
 							]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.axis.value",
+							"id": "us.wdg.max.tpp.tjoy.act.axis.value",
 							"label": "Value (0 - 100)",
 							"type": "text",
 							"default": "0"
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.axis.reset",
+							"id": "us.wdg.max.tpp.tjoy.act.axis.reset",
 							"label": "Reset To",
 							"type": "choice",
 							"default": "None",
 							"valueChoices": [ "None", "Center", "Max", "Min", "One Quarter", "Three Quarters", "Custom" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.act.axis.resetValue",
+							"id": "us.wdg.max.tpp.tjoy.act.axis.resetValue",
 							"label": "Custom Reset Value",
 							"type": "text",
 							"default": "50"
@@ -211,53 +251,56 @@
 			],
 			"connectors": [
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.conn.axis",
-					"prefix": "vJoy",
-					"name": "vJoy Axis",
+					"id": "us.wdg.max.tpp.tjoy.conn.axis",
+					"prefix": "TJoy",
+					"name": "Joystick Axis Slider",
 					"description": "Move an axis with slider.",
-					"format": "Move\nvJoy Axis {$us.wdg.max.tpp.tjoy.vJoy.conn.axis.id$} in range {$us.wdg.max.tpp.tjoy.vJoy.conn.axis.min$}% to {$us.wdg.max.tpp.tjoy.vJoy.conn.axis.max$}%{$us.wdg.max.tpp.tjoy.vJoy.conn.axis.reverse$} with\nreset to {$us.wdg.max.tpp.tjoy.vJoy.conn.axis.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.vJoy.conn.axis.resetValue$}%)",
+					"format": "Move\nDevice {$us.wdg.max.tpp.tjoy.conn.axis.devId$} Axis {$us.wdg.max.tpp.tjoy.conn.axis.id$} in range {$us.wdg.max.tpp.tjoy.conn.axis.min$}% to {$us.wdg.max.tpp.tjoy.conn.axis.max$}%{$us.wdg.max.tpp.tjoy.conn.axis.reverse$} with\nreset to {$us.wdg.max.tpp.tjoy.conn.axis.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.conn.axis.resetValue$}%)",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.axis.id",
+							"id": "us.wdg.max.tpp.tjoy.conn.axis.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.conn.axis.id",
 							"label": "vJoy Axis",
 							"type": "choice",
-							"default": "X",
 							"valueChoices": [
-								"X", "Y", "Z",
-								"RX", "RY", "RZ",
-								"SL0", "SL1", "WHL",
-								"AILERON", "RUDDER", "THROTTLE",
-								"ACCELERATOR", "BRAKE", "CLUTCH", "STEERING"
+								"X", "Y", "Z", "RX", "RY", "RZ", "SL0", "SL1",
+								"Lx", "Ly", "LT", "Rx", "Ry", "RT"
 							]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.axis.min",
+							"id": "us.wdg.max.tpp.tjoy.conn.axis.min",
 							"label": "Range Min.",
 							"type": "text",
 							"default": "0"
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.axis.max",
+							"id": "us.wdg.max.tpp.tjoy.conn.axis.max",
 							"label": "Range Max.",
 							"type": "text",
 							"default": "100"
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.axis.reverse",
+							"id": "us.wdg.max.tpp.tjoy.conn.axis.reverse",
 							"label": "Movement Direction",
 							"type": "choice",
 							"default": "Normal",
 							"valueChoices": [ "Normal", "Reverse" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.axis.reset",
+							"id": "us.wdg.max.tpp.tjoy.conn.axis.reset",
 							"label": "Reset To",
 							"type": "choice",
 							"default": "None",
 							"valueChoices": [ "None", "Center", "Max", "Min", "One Quarter", "Three Quarters", "Start", "Custom" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.axis.resetValue",
+							"id": "us.wdg.max.tpp.tjoy.conn.axis.resetValue",
 							"label": "Custom Reset Value",
 							"type": "text",
 							"default": "50"
@@ -265,47 +308,54 @@
 					]
 				},
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.conn.cpov",
-					"prefix": "vJoy",
-					"name": "vJoy Coninous POV Hat",
+					"id": "us.wdg.max.tpp.tjoy.conn.cpov",
+					"prefix": "TJoy",
+					"name": "Continous 360° POV Hat Slider",
 					"description": "Activate a continuous 360 degree hat swtich.",
-					"format": "Move\nvJoy POV {$us.wdg.max.tpp.tjoy.vJoy.conn.cpov.id$} in range {$us.wdg.max.tpp.tjoy.vJoy.conn.cpov.min$}% to {$us.wdg.max.tpp.tjoy.vJoy.conn.cpov.max$}%{$us.wdg.max.tpp.tjoy.vJoy.conn.cpov.reverse$} with\nreset to {$us.wdg.max.tpp.tjoy.vJoy.conn.cpov.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.vJoy.conn.cpov.resetValue$}%)",
+					"format": "Move\nDevice {$us.wdg.max.tpp.tjoy.conn.cpov.devId$} POV {$us.wdg.max.tpp.tjoy.conn.cpov.id$} in range {$us.wdg.max.tpp.tjoy.conn.cpov.min$}% to {$us.wdg.max.tpp.tjoy.conn.cpov.max$}%{$us.wdg.max.tpp.tjoy.conn.cpov.reverse$} with\nreset to {$us.wdg.max.tpp.tjoy.conn.cpov.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.conn.cpov.resetValue$}%)",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.cpov.id",
+							"id": "us.wdg.max.tpp.tjoy.conn.cpov.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.conn.cpov.id",
 							"label": "vJoy POV number 1-4",
 							"type": "choice",
 							"default": "1",
 							"valueChoices": [ "1", "2", "3", "4" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.cpov.min",
+							"id": "us.wdg.max.tpp.tjoy.conn.cpov.min",
 							"label": "Range Min.",
 							"type": "text",
 							"default": "0"
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.cpov.max",
+							"id": "us.wdg.max.tpp.tjoy.conn.cpov.max",
 							"label": "Range Max.",
 							"type": "text",
 							"default": "100"
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.cpov.reverse",
+							"id": "us.wdg.max.tpp.tjoy.conn.cpov.reverse",
 							"label": "Movement Direction",
 							"type": "choice",
 							"default": "Normal",
 							"valueChoices": [ "Normal", "Reverse" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.cpov.reset",
+							"id": "us.wdg.max.tpp.tjoy.conn.cpov.reset",
 							"label": "Reset To",
 							"type": "choice",
 							"default": "None",
 							"valueChoices": [ "None", "Center", "Max", "Min", "One Quarter", "Three Quarters", "Start", "Custom" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.cpov.resetValue",
+							"id": "us.wdg.max.tpp.tjoy.conn.cpov.resetValue",
 							"label": "Custom Reset Value",
 							"type": "text",
 							"default": "0"
@@ -313,43 +363,105 @@
 					]
 				},
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.conn.dpov",
-					"prefix": "vJoy",
-					"name": "vJoy 4-way D-Pad/POV Hat",
+					"id": "us.wdg.max.tpp.tjoy.conn.dpov",
+					"prefix": "TJoy",
+					"name": "D-Pad / D-POV Hat Slider",
 					"description": "Activate a 4-way D-pad/hat swtich.",
-					"format": "Move\nvJoy POV {$us.wdg.max.tpp.tjoy.vJoy.conn.dpov.id$} axis {$us.wdg.max.tpp.tjoy.vJoy.conn.dpov.dir$} with\nreset to {$us.wdg.max.tpp.tjoy.vJoy.conn.dpov.reset$}",
+					"format": "Move\nDevice {$us.wdg.max.tpp.tjoy.conn.dpov.devId$} POV {$us.wdg.max.tpp.tjoy.conn.dpov.id$} axis {$us.wdg.max.tpp.tjoy.conn.dpov.dir$} with\nreset to {$us.wdg.max.tpp.tjoy.conn.dpov.reset$}",
 					"data": [
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.dpov.id",
-							"label": "vJoy POV number 1-4",
+							"id": "us.wdg.max.tpp.tjoy.conn.dpov.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.conn.dpov.id",
+							"label": "vJoy POV number (1-4 for vJoy, only 1 for gamepads)",
 							"type": "choice",
 							"default": "1",
 							"valueChoices": [ "1", "2", "3", "4" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.dpov.dir",
+							"id": "us.wdg.max.tpp.tjoy.conn.dpov.dir",
 							"label": "Axis To Move",
 							"type": "choice",
 							"default": "X",
 							"valueChoices": [ "X", "Y", "XY", "YX" ]
 						},
 						{
-							"id": "us.wdg.max.tpp.tjoy.vJoy.conn.dpov.reset",
+							"id": "us.wdg.max.tpp.tjoy.conn.dpov.reset",
 							"label": "Reset To",
 							"type": "choice",
 							"default": "None",
-							"valueChoices": [ "None", "Center", "North", "East", "South", "West" ]
+							"valueChoices": [ "None", "Center", "North", "East", "South", "West", "NorthEast", "SouthEast", "SouthWest", "NorthWest" ]
 						}
 					]
 				}
 			],
 			"states": [
 				{
-					"id": "us.wdg.max.tpp.tjoy.vJoy.state.vJoyConnection",
-					"type": "choice",
-					"desc": "ID of currently connected vJoy device, 1-16 or 0 if none.",
-					"default": "0",
-					"valueChoices": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"]
+					"id": "us.wdg.max.tpp.tjoy.state.gamepad.1.led",
+					"type": "text",
+					"desc": "TJoy - Gamepad 1 LED Number (0-4)",
+					"default": "0"
+				},
+				{
+					"id": "us.wdg.max.tpp.tjoy.state.gamepad.2.led",
+					"type": "text",
+					"desc": "TJoy - Gamepad 2 LED Number (0-4)",
+					"default": "0"
+				},
+				{
+					"id": "us.wdg.max.tpp.tjoy.state.gamepad.3.led",
+					"type": "text",
+					"desc": "TJoy - Gamepad 3 LED Number (0-4)",
+					"default": "0"
+				},
+				{
+					"id": "us.wdg.max.tpp.tjoy.state.gamepad.4.led",
+					"type": "text",
+					"desc": "TJoy - Gamepad 4 LED Number (0-4)",
+					"default": "0"
+				},
+				{
+					"id": "us.wdg.max.tpp.tjoy.state.lastConnectedDevice",
+					"type": "text",
+					"desc": "TJoy - ID of the last connected VJD (transient, for Event).",
+					"default": "None"
+				},
+				{
+					"id": "us.wdg.max.tpp.tjoy.state.lastDisconnectedDevice",
+					"type": "text",
+					"desc": "TJoy - ID of the last disconnected VJD (transient, for Event).",
+					"default": "None"
+				}
+			],
+			"events": [
+				{
+					"id": "us.wdg.max.tpp.tjoy.event.deviceConnected",
+					"name": "TJoy - Virtual Joystick Device Connected",
+					"format": "When device $val connects",
+					"type": "communicate",
+					"valueType": "choice",
+					"valueStateId": "us.wdg.max.tpp.tjoy.state.lastConnectedDevice",
+					"valueChoices": [
+						"vJoy 1", "vJoy 2", "vJoy 3", "vJoy 4", "vJoy 5", "vJoy 5", "vJoy 7", "vJoy 8", "vJoy 9", "vJoy 10", "vJoy 11", "vJoy 12", "vJoy 13", "vJoy 14", "vJoy 15", "vJoy 16",
+						"vXBox 1", "vXBox 2", "vXBox 3", "vXBox 4"
+					]
+				},
+				{
+					"id": "us.wdg.max.tpp.tjoy.event.deviceDisconnected",
+					"name": "TJoy - Virtual Joystick Device Disconnected",
+					"format": "When device $val disconnects",
+					"type": "communicate",
+					"valueType": "choice",
+					"valueStateId": "us.wdg.max.tpp.tjoy.state.lastDisconnectedDevice",
+					"valueChoices": [
+						"vJoy 1", "vJoy 2", "vJoy 3", "vJoy 4", "vJoy 5", "vJoy 5", "vJoy 7", "vJoy 8", "vJoy 9", "vJoy 10", "vJoy 11", "vJoy 12", "vJoy 13", "vJoy 14", "vJoy 15", "vJoy 16",
+						"vXBox 1", "vXBox 2", "vXBox 3", "vXBox 4"
+					]
 				}
 			]
 		}
