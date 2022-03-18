@@ -1,12 +1,29 @@
 ﻿
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using TJoy.Enums;
 using TouchPortalSDK.Messages.Models;
-using vJoyInterfaceWrap;
 using Stopwatch = System.Diagnostics.Stopwatch;
+#if USE_VGEN
+using vJoy = vGenInterfaceWrap.vGen;
+#else
+using vJoy = vJoyInterfaceWrap.vJoy;
+#endif
 
 namespace TJoy.Types
 {
+  using JoystickState = vJoy.JoystickState;
+  using XInputState = vJoy.XInputState;
+
+  [System.Runtime.InteropServices.StructLayout(LayoutKind.Explicit)]
+  internal struct VJDState
+  {
+    [System.Runtime.InteropServices.FieldOffset(0)]
+    public JoystickState vJoyState;
+    [System.Runtime.InteropServices.FieldOffset(0)]
+    public XInputState xInputState;
+  }
+
   internal struct VJAxisInfo
   {
     public HID_USAGES usage;
@@ -16,13 +33,18 @@ namespace TJoy.Types
 
   internal struct VJDeviceInfo
   {
+    public DeviceType deviceType;
     public uint id;
+    public uint index;       // id minus device type
+    public byte ledNumber;   // for XInput
     public ushort nButtons;
     public ushort nContPov;
     public ushort nDiscPov;
+    public ushort nAxes;     // it's just the length of the axes array but it's used often
+    public uint driverVersion;
     public long lastStateUpdate;
-    public Dictionary<HID_USAGES, VJAxisInfo> axes;
-    public vJoy.JoystickState state;
+    public string typeName;  // name of this device type
+    public VJDState state;
   }
 
   internal struct VJEvent
@@ -52,7 +74,7 @@ namespace TJoy.Types
 
   internal class ConnectorTrackingData
   {
-    //public uint devId;
+    public uint devId;
     public string id;
     public ControlType type = ControlType.None;
     public HID_USAGES axis = 0;
@@ -73,7 +95,7 @@ namespace TJoy.Types
         rangeMax = ev.rangeMax
       };
       ConnectorTrackingData ret = new() {
-        //devId = ev.devId,
+        devId = ev.devId,
         id = ev.tpId,
         type = ev.type,
         axis = ev.axis,
@@ -90,11 +112,17 @@ namespace TJoy.Types
   internal class PluginSettings
   {
     public bool StateReportAxisRaw = false;    // report raw axis values instead of percent
-    public uint VjDeviceId = 0;                // configured vJoy device ID to use
+    public uint DefaultDeviceId = 0;           // default device ID to use from plugin settings
     public uint StateRefreshRate = 0;          // how often to send joystick device state updates, 0 to disable
     public ushort MinBtnNumForState = 1;       // start button state reports at this button, zero to disable
     public ushort MaxBtnNumForState = 128;     // end button state reports at this button
     public bool ClosedByTp = false;            // flag indicating TP requested the exit (vs. unexpected)
-    public IReadOnlyCollection<Setting> tpSettings;
+    public bool HaveVJoy = false;              // vJoy driver installed
+    public bool HaveVXbox = false;             // vXBox driver installed
+    public bool HaveVBus = false;              // ViGEm Bus driver installed
+    public bool AutoConnectDevice = true;      // Auto-connect new devices on demand (from action/connector event)
+    public List<uint> AvailableVJoyDevs = new();  // list of vJoy devices configured on the system.
+    //public List<uint> UseDevices = new();      // list of configured device IDs to use
+    public IReadOnlyCollection<Setting> tpSettings;  // keep a copy for ease of comparing for changed values when TP sends a settings update
   }
 }

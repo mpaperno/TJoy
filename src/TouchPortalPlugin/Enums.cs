@@ -24,12 +24,21 @@ namespace TJoy.Enums
 {
   internal enum DeviceType : short
   {
-    None, VJoy, XBox360, DualShock4
+    None = -1,
+    VJoy = 0,
+    VXBox = 1000,
+    VBXBox = 2000,
+    VBDS4 = 3000
+  }
+
+  internal enum DeviceStatus : short
+  {
+    Unknown, Connected, Disconnected
   }
 
   internal enum ControlType : short
   {
-    None, Button, Axis, ContPov, DiscPov, Slider
+    None, Button, Axis, DiscPov, ContPov
   }
 
   internal enum ButtonAction : short
@@ -39,8 +48,11 @@ namespace TJoy.Enums
 
   internal enum DPovDirection : short
   {
-    None = -2, Center, North, East, South, West,
-    X, Y, XY, YX  // for sliders/dials
+    None = -2, Center,
+    North, East, South, West,
+    NorthEast, SouthEast, SouthWest, NorthWest,
+    // for sliders/dials
+    X = 10, Y, XY, YX,
   }
 
   internal enum CtrlResetMethod : short

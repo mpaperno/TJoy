@@ -39,6 +39,11 @@ using TouchPortalSDK.Messages.Models;
 using TouchPortalSDK.Messages.Models.Enums;
 using Stopwatch = System.Diagnostics.Stopwatch;
 //using Timer = System.Threading.Timer;
+#if USE_VGEN
+using vJoy = vGenInterfaceWrap.vGen;
+#else
+using vJoy = vJoyInterfaceWrap.vJoy;
+#endif
 
 
 namespace TJoy.TouchPortalPlugin
@@ -47,8 +52,7 @@ namespace TJoy.TouchPortalPlugin
   {
     public string PluginId => C.PLUGIN_ID;   // for ITouchPortalEventHandler
 
-    // current vJoy device ID, zero if not connected (the configured device ID is in _settings)
-    private uint VJoyCurrDevId { get { return _vjoyDevice?.DeviceId ?? 0; } }
+    private uint DefaultDevId => _settings.DefaultDeviceId;
 
     private readonly ILogger<Plugin> _logger;
     private readonly ITouchPortalClient _client;
@@ -62,60 +66,76 @@ namespace TJoy.TouchPortalPlugin
     private CancellationTokenSource _stateTaskCts = null;
     private CancellationToken _stateTaskShutdownToken;
 
-    private readonly JoyDevice _vjoyDevice;
+    private readonly Dictionary<uint, JoyDevice> _devices = new();
     private readonly PluginSettings _settings = new();
     private static readonly System.Data.DataTable _expressionEvaluator = new();  // used to evaluate basic math in action data
     private readonly ConcurrentQueue<DataContainerEventBase> _eventQ = new();
     private readonly ConcurrentDictionary<string, ConnectorTrackingData> _connectorsDict = new();
     private readonly ConcurrentDictionary<string, string> _connectorsLongToShortMap = new();
     private readonly Dictionary<string, int> _joystickStatesDict = new();
+    private readonly ILoggerFactory _loggerFactory;
 
     // automagic contructor arguments... woot!?
     public Plugin(ITouchPortalClientFactory clientFactory, ILoggerFactory logFactory)
     {
       _logger = logFactory?.CreateLogger<Plugin>() ?? throw new ArgumentNullException(nameof(logFactory));
       _client = clientFactory?.Create(this) ?? throw new ArgumentNullException(nameof(clientFactory));
+      _loggerFactory = logFactory;
 
       _eventWorkerTask = new(ProcessEventQueue);
       _eventWorkerTask.ConfigureAwait(false);
       _shutdownToken = _shutdownCts.Token;
 
-      // TODO: constuct device(s) as needed
-      // hackish way to pass a logger... sigh. yea yea, DI, but JoyDevice is not a service or interface (yet?) so nothing I tried worked. all the SO answers are
-      // half-baked at best and docs are useless. also I want to construct it with a parameter and have multiple instances later w/out jumping through hoops?
-      _vjoyDevice = new JoyDevice(logFactory, DeviceType.VJoy);
-
       //Environment.SetEnvironmentVariable("VJOYINTERFACELOGLEVEL", "1");  // uncomment to enable vJoy SDK logging (rather verbose)
       //Environment.SetEnvironmentVariable("VJOYINTERFACELOGFILE", "logs\\vjoy.log");
     }
 
+    #region Core Process                   ///////////////////////////////////////////
+
     public void Run()
     {
-      // regiter ctrl-c exit handler first
+      // register ctrl-c exit handler first
       Console.CancelKeyPress += (_, _) => {
         _logger.LogInformation("Quitting due to keyboard interrupt.");
         Quit();
         Environment.Exit(0);
       };
 
-      // TODO: only check once vJoy is enabled in settings
-      // Get the driver attributes (Vendor ID, Product ID, Version Number)
-      if (!_vjoyDevice.DeviceTypeExists) {
-        _logger.LogError("vJoy driver not enabled: Failed Getting vJoy attributes.");
-        Quit();
-        return;
+      vJoy vjoy = new();
+      if (vjoy.vJoyEnabled()) {
+        _settings.HaveVJoy = true;
+        // Get the driver attributes (Vendor ID, Product ID, Version Number)
+        _logger.LogInformation("Virtual Joystick Driver Vendor: {0}, Product: {1}, Version: {2}",
+          vjoy.GetvJoyManufacturerString(), vjoy.GetvJoyProductString(), vjoy.GetvJoySerialNumberString());
+
+        // Test if DLL matches the driver
+        UInt32 dllVer = 0;
+        UInt32 drivVer = 0;
+        if (vjoy.DriverMatch(ref dllVer, ref drivVer))
+          _logger.LogInformation($"Version of Driver Matches DLL Version ({dllVer:X})");
+        else
+          _logger.LogWarning($"Version of Driver ({drivVer:X}) does NOT match DLL Version ({dllVer:X})");   // hope they check this log to see why their computer exploded.... lol
+
+        // subscribe to device config change events
+        vjoy.RegisterRemovalCB(VJoyDeviceChangedCB, null);
+        DetectVJoyDevices();
       }
+#if USE_VGEN
+      _settings.HaveVXbox = vjoy.isVBusExist() == VJRESULT.SUCCESS;
+#endif
+#if USE_VIGEM
+      try {
+        vBus = new ViGEmClient();
+        _settings.HaveVBus = true;
+        _logger.LogInformation($"Found ViGEm Bus driver {}.");
+        vBus.Dispose();
+      }
+      catch (Exception e) {
+        _logger.LogWarning(e, "Failed to create ViGEmClient, driver not installed or already in use.");
+      }
+#endif
 
-      _logger.LogInformation("vJoy Driver Vendor: {0}, Product: {1}, Version: {2}", _vjoyDevice.Manufacturer, _vjoyDevice.Product, _vjoyDevice.SerialNumber);
-
-      // seems vj likes it best if we do this first thing
-      _vjoyDevice.RegisterRemovalCallback(VJoyDeviceChangedCB, null);
-
-      // Test if DLL matches the driver
-      if (_vjoyDevice.CheckVersion(out var DllVer, out var DrvVer))
-        _logger.LogInformation("Version of Driver Matches DLL Version ({0:X})", DllVer);
-      else
-        _logger.LogWarning("Version of Driver ({0:X}) does NOT match DLL Version ({1:X})", DrvVer, DllVer);   // hope they check this log to see why their computer exploded.... lol
+      _eventWorkerTask.Start();
 
       //Connect to Touch Portal:
       if (!_client.Connect()) {
@@ -124,7 +144,7 @@ namespace TJoy.TouchPortalPlugin
         return;
       }
 
-      _eventWorkerTask.Start();
+      UpdateDeviceChoices();   // send list of initial devices
 
       // at this point the client's socket it spinning an event loop and on this thread we're just reacting to TP events via the handlers.
       // the socket/client fire event callbacks synchronously from a separate message delivery task.
@@ -138,74 +158,269 @@ namespace TJoy.TouchPortalPlugin
         return;
       _disposed = true;
       _logger?.LogInformation("Shutting down...");
-      _shutdownCts?.Cancel();
+
+      _eventQ.Clear();       // prevent further events
+      StopStatusDataTask();  // if it's running
+      _logger?.LogDebug("Removing all devices...");
+      RemoveAllDevices();    // before stopping worker
+      //ClearAllTpJoystickStates();  // not sure about this.. or maybe we only remove states when device disconnects
 
       _logger?.LogDebug("Shutting down the event worker...");
+      _shutdownCts?.Cancel();
       var sw = Stopwatch.StartNew();
       while (_eventWorkerTask.Status == TaskStatus.Running && sw.ElapsedMilliseconds < 5000)
         Thread.Sleep(1);
       if (sw.ElapsedMilliseconds > 5000)
         _logger.LogWarning("Event worker timed out!");
 
-      DisconnectVJoy();  // also stop status updates if needed
-
+      _logger?.LogDebug("Object disposal...");
       _eventWorkerTask?.Dispose();
       _shutdownCts?.Dispose();
       _eventQueueReadyEvent?.Dispose();
       _expressionEvaluator?.Dispose();
 
       _logger?.LogInformation("All finished, shutting down TP client now.");
-      if (_client?.IsConnected ?? false) {
+      if (!_settings.ClosedByTp && (_client?.IsConnected ?? false)) {
         try { _client.Close(); }  // exits the event loop keeping us alive
         catch (Exception) { /* ignore */ }
       }
     }
 
-    #region vJoy Interface           ///////////////////////////////////////////
+    #endregion  Core Process
 
-    private bool VJoyConnected() => VJoyCurrDevId > 0;
-    private bool VJoyConnected(uint vjid) => _vjoyDevice.CheckConnected(vjid);
+    #region Helpers                  ///////////////////////////////////////////
 
-    private void SetVJoyDevice(uint vjid)
+    private DeviceType DefaultDeviceType(uint devId)
     {
-      if (vjid == _settings.VjDeviceId)
-        return;
-
-      if (vjid > 16) {
-        _logger.LogWarning($"vJoy Device ID {vjid} is out of range (1-16).");
-        return;
-      }
-
-      _settings.VjDeviceId = vjid;
-
-      // Relinquish old device, if any.
-      if (VJoyCurrDevId > 0)
-        DisconnectVJoy();
-
-      if (vjid != 0)
-        SetupVJoyDevice(vjid);
+      if (devId == 0)
+        return DeviceType.None;
+      if (DefaultDevId > 0)
+        return Util.DeviceIdToType(DefaultDevId);
+      if (_settings.AvailableVJoyDevs.Contains(devId))
+        return DeviceType.VJoy;
+      if (_settings.HaveVXbox && devId < 5)
+        return DeviceType.VXBox;
+      if (_settings.HaveVBus && devId < 5)
+        return DeviceType.VBXBox;
+      return DeviceType.None;
     }
 
-    private void SetupVJoyDevice(uint vjid)
+    private uint GetFullDeviceIdOrDefault(string devIdStr)
     {
-      if (vjid == 0 || VJoyConnected(vjid))
+      if (string.IsNullOrWhiteSpace(devIdStr) || devIdStr.Equals(C.IDSTR_DEVID_DFLT, StringComparison.OrdinalIgnoreCase))
+        return DefaultDevId;
+      if (Util.TryParseDeviceType(devIdStr, out DeviceType type, out uint id)) {
+        if (type == DeviceType.None && (type = DefaultDeviceType(id)) == DeviceType.None)
+          return 0;
+        return id + (uint)type;
+      }
+      return 0;
+    }
+
+    private bool CheckDeviceId(uint vjid)
+    {
+      if (vjid == 0) {
+        _logger.LogWarning($"Invalid device ID 0 (zero).");
+        return false;
+      }
+      DeviceType devType = Util.DeviceIdToType(vjid);
+      if (devType == DeviceType.None) {
+        _logger.LogWarning($"Uknown Device Type for Device ID {vjid}.");
+        return false;
+      }
+      vjid -= (uint)devType;
+      if (vjid > Util.MaxDevices(devType)) {
+        _logger.LogWarning($"{Util.DeviceTypeName(devType)} Device ID {vjid} is out of range (1 - {Util.MaxDevices(devType)}).");
+        return false;
+      }
+      if ((devType == DeviceType.VJoy && !_settings.HaveVJoy) ||
+          (devType == DeviceType.VXBox && !_settings.HaveVXbox) ||
+          ((devType == DeviceType.VBXBox || devType == DeviceType.VBDS4) && !_settings.HaveVBus)) {
+        _logger.LogWarning($"Driver for device type {Util.DeviceTypeName(devType)} is apparently not installed.");
+        return false;
+      }
+      return true;
+    }
+
+    private bool TryEvaluateValue(string strValue, out int value)
+    {
+      value = 0;
+      if (TryEvaluateValue(strValue, out float val)) {
+        value = (int)Math.Round(val);
+        return true;
+      }
+      return false;
+    }
+
+    private bool TryEvaluateValue(string strValue, out float value)
+    {
+      value = 0;
+      try {
+        value = (float)Convert.ToDecimal(_expressionEvaluator.Compute(strValue, null));
+      }
+      catch (Exception e) {
+        _logger.LogWarning(e, $"Failed to convert Action data value '{strValue}' to numeric value.");
+        return false;
+      }
+      return true;
+    }
+
+    // Gets a vJoy device value for the reset attributes specified in an action/connector.
+    // Returns -2 if no reset is to be done.
+    private int GetResetValueFromEvent(DataContainerEventBase message, string actId, ControlType evtype, int startValue = 0)
+    {
+      // Get reset type and value
+      var isConn = message.GetType() == typeof(ConnectorChangeEvent);
+      var rstStr = message.GetValue(Util.ActionDataIdStr(actId, C.IDSTR_RESET_TYP, isConn))?.Replace(" ", string.Empty) ?? "None";
+      var rvalStr = message.GetValue(Util.ActionDataIdStr(actId, C.IDSTR_RESET_VAL, isConn)) ?? "-2";
+      if (Enum.TryParse(rstStr, true, out CtrlResetMethod rstType) && rstType != CtrlResetMethod.None && TryEvaluateValue(rvalStr, out int customVal))
+        return Util.GetResetValueForType(rstType, evtype, customVal, startValue);
+      return -2;
+    }
+
+    private static bool RefreshDeviceStateIfNeeded(JoyDevice device)
+    {
+      return (Util.TicksToSecs(Stopwatch.GetTimestamp() - device.LastStateUpdate) < C.VJD_STATE_MAX_AGE_SEC || device.RefreshState());
+    }
+
+    private void UpdateTPChoicesFromListId(string listId, string[] values, string instanceId = null)
+    {
+      UpdateTPChoices($"{listId[0..^C.IDSTR_DEVICE_ID.Length]}{C.IDSTR_TARGET_ID}", values, instanceId);
+    }
+
+    #endregion Helpers
+
+    #region VJD Interface           ///////////////////////////////////////////
+
+    private bool VJoyConnected(uint vjid) => Device(vjid)?.IsConnected ?? false;
+
+    private JoyDevice Device(uint id = 0)
+    {
+      if (id == 0)
+        id = DefaultDevId;
+      return _devices.GetValueOrDefault(id, null);
+    }
+
+    private bool TryGetDevice(uint id, out JoyDevice dev)
+    {
+      return _devices.TryGetValue(id, out dev);
+    }
+
+    private void SetDefaultDevice(uint vjid)
+    {
+      if (_settings.DefaultDeviceId == vjid)
         return;
 
-      UpdateTPState(C.IDSTR_STATE_VJSTATE, "0");
-      ClearAllTpJoystickStates();
+      if (vjid != 0 && !CheckDeviceId(vjid))
+        vjid = 0;
 
-      // Attempt connection
-      if (!_vjoyDevice.Connect(vjid)) {
-        _logger.LogInformation("Failed to acquire vJoy device number {0}. Cannot continue.", vjid);
-        return;
+      // Relinquish old device, if any.
+      if (_settings.DefaultDeviceId > 0)
+        RemoveDevice(_settings.DefaultDeviceId);
+
+      _settings.DefaultDeviceId = vjid;
+      if (vjid != 0)
+        AddDevice(vjid);
+    }
+
+    private JoyDevice AddDevice(uint vjid)
+    {
+      if (_devices.ContainsKey(vjid))
+        return Device(vjid);
+
+      if (!CheckDeviceId(vjid))
+        return null;
+
+      JoyDevice device;
+      try {
+        // Attempt creation
+        device = new JoyDevice(_loggerFactory, vjid);
+        // Attempt connection
+        if (!device.Connect()) {
+          _logger.LogError($"Failed to acquire {device.Name}.");
+          return null;
+        }
+      }
+      catch (Exception e) {
+        _logger.LogError(e, "Failed to create JoyDevice for device number {0}.", vjid);
+        return null;
       }
 
-      UpdateTPState(C.IDSTR_STATE_VJSTATE, vjid.ToString());
-      _logger.LogInformation("Acquired: vJoy device number {0}.", vjid);
-      _logger.LogInformation(_vjoyDevice.GetDeviceCapabilitiesReport(vjid));
+      _devices.Add(vjid, device);
+      _logger.LogInformation($"Acquired: {device.Name}");
+      _logger.LogInformation(device.GetDeviceCapabilitiesReport());
 
-      _vjoyDevice.ResetDevice();
-      StartStatusDataTask();  // unless it's disabled
+      UpdateTPState(C.IDSTR_STATE_LAST_CONNECT, $"{device.Name}");
+      if (device.IsGamepad)
+        UpdateTPState($"{C.IDSTR_GAMEPAD}.{device.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", device.LedNumber.ToString());
+      UpdateDeviceConnectors(vjid);
+
+      device.ResetDevice();
+      StartStatusDataTask();  // if needed
+      UpdateTPState(C.IDSTR_STATE_LAST_CONNECT, "");
+      return device;
+    }
+
+    private void RemoveDevice(uint vjid)
+    {
+      if (!TryGetDevice(vjid, out JoyDevice oldDev))
+        return;
+      _logger.LogDebug($"Relinquishing Device ID {vjid}.");
+      oldDev.RelinquishDevice();
+      _devices.Remove(vjid);
+      UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, $"{oldDev.Name}");
+      if (oldDev.IsGamepad)
+        UpdateTPState($"{C.IDSTR_GAMEPAD}.{oldDev.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", "0");
+      UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, "");
+    }
+
+    private void RemoveAllDevices(DeviceType devType = DeviceType.None)
+    {
+      foreach (var device in _devices.Values) {
+        if (devType == DeviceType.None || devType == device.DeviceType)
+          RemoveDevice(device.Id);
+      }
+    }
+
+    private void ResetDevice(uint vjid)
+    {
+      Device(vjid)?.ResetDevice();
+    }
+
+    private void RefreshDeviceState(uint vjid)
+    {
+      if (TryGetDevice(vjid, out var dev))
+        SendStateReport(dev);
+    }
+
+    private void ForceUnplugDevice(uint vjid)
+    {
+      DeviceType devType = Util.DeviceIdToType(vjid);
+      if (devType == DeviceType.VJoy)
+        return;
+      if (devType == DeviceType.VXBox) {
+        vJoy vjoy = new();
+        var res = vjoy.UnPlugForce(vjid - (uint)devType);
+        if (res != VJRESULT.SUCCESS)
+          _logger.LogError("Force Unplug of device {0} failed with error code {1}.", vjid, res);
+      }
+    }
+
+    private void DetectVJoyDevices()
+    {
+      _settings.AvailableVJoyDevs.Clear();
+      if (!_settings.HaveVJoy)
+        return;
+      try {
+        vJoy vjoy = new();
+        for (uint i = 1; i <= 16; ++i) {
+          if (vjoy.isVJDExists(i))
+            _settings.AvailableVJoyDevs.Add(i);
+        }
+      }
+      catch (Exception e) {
+        _logger.LogWarning(e, "Something went wrong trying to get the available devices with vJoy.isVJDExists()");
+      }
     }
 
     // vJoy device change notification callback.
@@ -219,29 +434,37 @@ namespace TJoy.TouchPortalPlugin
     private void VJoyDeviceChangedCB(bool removed, bool first, object _)
     {
       //_logger.LogDebug($"[VJoyDeviceChangedCB] r:{removed} f:{first} c:{VJoyConnected()}; vjid:{_vjdId}; want: {_settings.VjDeviceId}");
-      if (removed != first || _settings.VjDeviceId == 0 || (removed && !VJoyConnected()))
+      if (removed != first || (removed && !_devices.Any()))
         return;
-      if (removed)
-        DisconnectVJoy();
-      else
-        SetupVJoyDevice(_settings.VjDeviceId);
+
+      if (removed) {
+        RemoveAllDevices(DeviceType.VJoy);
+      }
+      else {
+        DetectVJoyDevices();
+        if (Util.DeviceIdToType(DefaultDevId) == DeviceType.VJoy && _settings.AvailableVJoyDevs.Contains(DefaultDevId))
+          AddDevice(DefaultDevId);
+        UpdateDeviceChoices();
+      }
     }
 
-    #endregion
+    #endregion  VJD Interface
+
     #region Joystick values state updates                 ///////////////////////////////////////////////
 
     private void StartStatusDataTask()
     {
-      if (_settings.StateRefreshRate == 0 || _stateUpdateTask != null || VJoyCurrDevId == 0)
+      if (_settings.StateRefreshRate == 0 || !_devices.Any())
         return;
-
+      if (_stateUpdateTask != null)
+        StopStatusDataTask();
       _logger?.LogDebug("Starting state updater task...");
       _stateTaskCts = new CancellationTokenSource();
       _stateTaskShutdownToken = _stateTaskCts.Token;
       _stateUpdateTask = Task.Run(VJoyCollectStateDataTask, _stateTaskShutdownToken);
     }
 
-    private void StoptatusDataTask()
+    private void StopStatusDataTask()
     {
       if (_stateUpdateTask == null)
         return;
@@ -260,60 +483,20 @@ namespace TJoy.TouchPortalPlugin
 
     private void ToggletatusDataTask()
     {
-      if (_settings.StateRefreshRate > 0 && _stateUpdateTask == null)
+      if (_settings.StateRefreshRate > 0 && (_stateUpdateTask == null || _stateUpdateTask.IsCompleted))
         StartStatusDataTask();
       else if (_settings.StateRefreshRate == 0 && _stateUpdateTask != null)
-        StoptatusDataTask();
+        StopStatusDataTask();
     }
 
     // Thread pool task
     private async void VJoyCollectStateDataTask()
     {
       _logger.LogDebug("State updater task started.");
-      _ = _vjoyDevice.TryGetAxisInfo(HID_USAGES.HID_USAGE_POV, out VJAxisInfo povInfo);
       try {
         while (_settings.StateRefreshRate > 0 && !_stateTaskShutdownToken.IsCancellationRequested) {
-
-          if (!_vjoyDevice.RefreshState())
-            break;
-          //_logger.LogDebug(JsonSerializer.Serialize<vJoy.JoystickState>(_vjoyInfo.state, new JsonSerializerOptions { WriteIndented = true, IncludeFields = true }));
-
-          var state = _vjoyDevice.DeviceState();
-          // Axis
-          foreach (VJAxisInfo axe in _vjoyDevice.AxisInfo) {
-            var val = Utils.GetVJoyStateReportAxisValue(state, axe.usage);
-            if (val < 0)
-              continue;
-            if (!_settings.StateReportAxisRaw)
-              val = Utils.RangeValueToPercent(val, axe.minValue, axe.maxValue);
-            UpdateTpJoystickState(ControlType.Axis, axe.usage.ToString().Split('_').Last(), val);
-          }
-          // CPOV
-          for (uint i=1, e = _vjoyDevice.ContinuousHatCount; i <= e; ++i) {
-            var val = Utils.GetVJoyStateReportCPovValue(state, i);
-            if (val < -1)
-              continue;
-            if (!_settings.StateReportAxisRaw && val > -1)
-              val = Utils.RangeValueToPercent(val, povInfo.minValue, povInfo.maxValue);
-            UpdateTpJoystickState(ControlType.ContPov, i.ToString(), val);
-          }
-          // DPOV
-          for (uint i = 1, e = _vjoyDevice.DiscreteHatCount; i <= e; ++i) {
-            var val = Utils.GetVJoyStateReportDPovValue(state, i);
-            if (val < -1)
-              continue;
-            UpdateTpJoystickState(ControlType.DiscPov, i.ToString(), val);
-          }
-          // Buttons
-          if (_settings.MinBtnNumForState > 0 && _settings.MaxBtnNumForState >= _settings.MinBtnNumForState) {
-            for (uint i = _settings.MinBtnNumForState, e = Math.Min(_settings.MaxBtnNumForState, _vjoyDevice.ButtonCount); i <= e; ++i) {
-              var val = Utils.GetVJoyStateReportButtonValue(state, i);
-              if (val < 0)
-                continue;
-              UpdateTpJoystickState(ControlType.Button, i.ToString(), val);
-            }
-          }
-
+          foreach (var device in _devices.Values)
+            SendStateReport(device);
           await Task.Delay((int)_settings.StateRefreshRate, _stateTaskShutdownToken);
         }
       }
@@ -325,18 +508,65 @@ namespace TJoy.TouchPortalPlugin
       _logger.LogDebug("State updater task exited.");
     }
 
-    private void UpdateTpJoystickState(ControlType ev, string devName, int value)
+    private void SendStateReport(JoyDevice device)
     {
-      string stateName = Utils.EventTypeToTpStateName(ev);
-      string stateId = stateName + "." + devName;
+      if (_client == null || device == null || !_client.IsConnected || !device.RefreshState())
+        return;
+
+      VJDeviceInfo devInfo = device.DeviceInfo();
+      var axisInfo = device.AxisInfo;
+      //_logger.LogDebug(JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true, IncludeFields = true }));
+
+      // Axis
+      foreach (VJAxisInfo axe in axisInfo) {
+        var val = Util.GetStateReportAxisValue(devInfo.deviceType, devInfo.state, axe.usage);
+        if (val < 0)
+          continue;
+        if (!_settings.StateReportAxisRaw)
+          val = Util.RangeValueToPercent(val, axe.minValue, axe.maxValue);
+        UpdateTpJoystickState(ControlType.Axis, val, devInfo.typeName, devInfo.index, Util.AxisName(devInfo.deviceType, axe.usage));
+      }
+      // CPOV
+      for (uint i = 1; i <= devInfo.nContPov; ++i) {
+        var val = Util.GetStateReportCPovValue(devInfo.deviceType, devInfo.state, i);
+        if (val < -1)
+          continue;
+        if (!_settings.StateReportAxisRaw && val > -1)
+          val = Util.RangeValueToPercent(val, C.VJ_CPOV_MIN_VALUE, C.VJ_CPOV_MAX_VALUE);
+        UpdateTpJoystickState(ControlType.ContPov, val, devInfo.typeName, devInfo.index, i.ToString());
+      }
+      // DPOV
+      for (uint i = 1; i <= devInfo.nDiscPov; ++i) {
+        var val = Util.GetStateReportDPovValue(devInfo.deviceType, devInfo.state, i);
+        if (val == DPovDirection.None)
+          continue;
+        UpdateTpJoystickState(ControlType.DiscPov, (int)val, devInfo.typeName, devInfo.index, i.ToString());
+      }
+      // Buttons
+      if (_settings.MinBtnNumForState > 0 && _settings.MaxBtnNumForState >= _settings.MinBtnNumForState) {
+        for (uint i = _settings.MinBtnNumForState, e = Math.Min(_settings.MaxBtnNumForState, devInfo.nButtons); i <= e; ++i) {
+          var val = Util.GetStateReporButtonValue(devInfo.deviceType, devInfo.state, i);
+          if (val < 0)
+            continue;
+          UpdateTpJoystickState(ControlType.Button, val, devInfo.typeName, devInfo.index, Util.ButtonName(devInfo.deviceType, i));
+        }
+      }
+    }
+
+    private void UpdateTpJoystickState(ControlType ev, int value, string devName, uint devIndex, string ctrlName)
+    {
+      string stateId = $"{devName}.{devIndex}.{Util.EventTypeToTpStateId(ev)}.{ctrlName}";
       if (!_joystickStatesDict.TryGetValue(stateId, out int prevValue)) {
         prevValue = -2;
         _joystickStatesDict.Add(stateId, value);
-        CreateTPState(stateId, $"{C.IDSTR_CATEGORY_VJOY} - {Utils.EventTypeToControlName(ev)} {devName} value", Utils.GetDefaultValueForEventType(ev).ToString());
+        CreateTPState(stateId, $"{C.PLUGIN_SHORT_NAME} - {devName} {devIndex} - {Util.EventTypeToControlName(ev)} {ctrlName} value", Util.GetDefaultValueForEventType(ev).ToString());
       }
       if (prevValue != value) {
         _joystickStatesDict[stateId] = value;
-        UpdateTPState(stateId, value.ToString());
+        if (ev == ControlType.DiscPov)  // send direction enum name instead of value
+          UpdateTPState(stateId, ((DPovDirection)value).ToString());
+        else
+          UpdateTPState(stateId, value.ToString());
       }
     }
 
@@ -347,41 +577,192 @@ namespace TJoy.TouchPortalPlugin
       _joystickStatesDict.Clear();
     }
 
-    #endregion
+    #endregion  Joystick values state updates
+
+    #region List Updaters                ///////////////////////////////////////////////
+
+    private void UpdateDeviceChoices()
+    {
+      List<string> values = new() { C.IDSTR_DEVID_DFLT };
+      string devName;
+      if (_settings.HaveVJoy) {
+        devName = Util.DeviceTypeName(DeviceType.VJoy);
+        foreach (uint devId in _settings.AvailableVJoyDevs)
+          values.Add($"{devName} {devId}");
+      }
+      if (_settings.HaveVXbox) {
+        devName = Util.DeviceTypeName(DeviceType.VXBox);
+        for (uint i = 1; i <= 4; ++i)
+          values.Add($"{devName} {i}");
+      }
+      if (_settings.HaveVBus) {
+        devName = Util.DeviceTypeName(DeviceType.VBXBox);
+        for (uint i = 1; i <= 4; ++i)
+          values.Add($"{devName} {i}");
+        devName = Util.DeviceTypeName(DeviceType.VBDS4);
+        for (uint i = 1; i <= 4; ++i)
+          values.Add($"{devName} {i}");
+      }
+
+      var valarry = values.ToArray();
+      foreach (var eltype in new string[] { C.IDSTR_EL_ACTION, C.IDSTR_EL_CONNECTOR }) {
+        foreach (var ctrlType in new string[] { C.IDSTR_DEVTYPE_AXIS, C.IDSTR_DEVTYPE_BTN, C.IDSTR_DEVTYPE_CPOV, C.IDSTR_DEVTYPE_DPOV }) {
+          var listId = C.PLUGIN_ID + "." + eltype + "." + ctrlType + "." + C.IDSTR_DEVICE_ID;
+          UpdateTPChoices(listId, valarry);
+          //if (ctrlType == C.IDSTR_DEVTYPE_AXIS)
+            //UpdateAxisChoices(DefaultDevId, listId, null);
+        }
+      }
+      // also update the device control action
+      UpdateTPChoices(C.PLUGIN_ID + "." + C.IDSTR_EL_ACTION + "." + C.IDSTR_ACTION_DEVICE_CTRL + "." + C.IDSTR_DEVICE_ID, valarry);
+    }
+
+    private void UpdateAxisChoices(uint devId, string listId, string instanceId)
+    {
+      DeviceType devType = Util.DeviceIdToType(devId);
+      IReadOnlyCollection<VJAxisInfo> axeInfo;
+      if (TryGetDevice(devId, out JoyDevice device))
+        axeInfo = device.AxisInfo;
+      else
+        axeInfo = Util.GetDefaultAxisInfo(devType);
+      List<string> values = new();
+      foreach (VJAxisInfo axe in axeInfo) {
+        if (axe.usage != HID_USAGES.HID_USAGE_POV)
+          values.Add($"{Util.AxisName(devType, axe.usage)}");
+      }
+      UpdateTPChoicesFromListId(listId, values.ToArray(), instanceId);
+    }
+
+    private void UpdateButtonChoices(uint devId, string listId, string instanceId)
+    {
+      DeviceType devType = Util.DeviceIdToType(devId);
+      uint btnCnt;
+      if (TryGetDevice(devId, out JoyDevice device))
+        btnCnt = device.ButtonCount;
+      else
+        btnCnt = Util.GetDefaultButtonCount(devType);
+      string[] values = new string[btnCnt];
+      for (uint i = 1; i <= btnCnt; ++i)
+        values[i-1] = ($"{Util.ButtonName(devType, i)}");
+      UpdateTPChoicesFromListId(listId, values, instanceId);
+    }
+
+    private void UpdatePovCountChoices(uint devId, string listId, string instanceId)
+    {
+      DeviceType devType = Util.DeviceIdToType(devId);
+      int maxPovs = devType == DeviceType.VJoy ? 4 : 1;
+      string[] values = new string [maxPovs];
+      for (var i = 1; i <= maxPovs; ++i)
+        values[i-1] = i.ToString();
+      UpdateTPChoicesFromListId(listId, values, instanceId);
+    }
+
+    private void UpdateDPovChoices(uint devId, string listId, string instanceId)
+    {
+      DeviceType devType = Util.DeviceIdToType(devId);
+      DPovDirection maxDir = devType == DeviceType.VJoy ? DPovDirection.West : DPovDirection.NorthWest;
+      string[] values = new string[(int)maxDir + 2];
+      for (var i = DPovDirection.Center; i <= maxDir; ++i)
+        values[(int)i + 1] = i.ToString();
+      UpdateTPChoicesFromListId(listId, values, instanceId);
+    }
+
+    #endregion List Updaters
+
+    #region Connector Updaters                ///////////////////////////////////////////////
+
+    private void UpdateDeviceConnectors(uint devId)
+    {
+      // Send the current axis values to any related connector(s). Refresh the VJD state first if needed.
+      if (TryGetDevice(devId, out JoyDevice device) && RefreshDeviceStateIfNeeded(device)) {
+        var state = device.StateReport();
+        foreach (ConnectorTrackingData cdata in _connectorsDict.Values)
+          if (cdata.devId == devId)
+            UpdateConnectorsFromState(cdata, state);
+      }
+    }
+
+    private void UpdateConnectorsFromState(in ConnectorTrackingData cdata, in VJDState state)
+    {
+      switch (cdata.type) {
+        case ControlType.Axis:
+          cdata.lastValue = Util.GetStateReportAxisValue(Util.DeviceIdToType(cdata.devId), state, cdata.axis);
+          break;
+        case ControlType.ContPov:
+          cdata.lastValue = Util.GetStateReportCPovValue(Util.DeviceIdToType(cdata.devId), state, cdata.targetId);
+          break;
+        case ControlType.DiscPov:
+          cdata.lastValue = (int)Util.GetStateReportDPovValue(Util.DeviceIdToType(cdata.devId), state, cdata.targetId);
+          break;
+        default:
+          return;
+      }
+      UpdateRelatedConnectors(cdata);
+    }
+
+    private void UpdateRelatedConnectors(/*object obj*/ ConnectorTrackingData data)
+    {
+      //if (obj?.GetType() != typeof(ConnectorTrackingData))
+      //return;
+      //var data = (ConnectorTrackingData)obj;
+      if (!TryGetDevice(data.devId, out JoyDevice device))
+        return;
+
+      foreach (var instance in data.relations) {
+        if (string.IsNullOrEmpty(instance.shortId) || instance.shortId == data.currentShortId)
+          continue;
+
+        int value = data.lastValue;
+        if (data.type == ControlType.DiscPov) {
+          value = device.ScaleDpovToAxis(value, instance.dpovDir);
+        }
+        else {
+          if (data.type == ControlType.ContPov && data.lastValue < 0)  // center POV
+            value = device.ScaleInputToAxisRange(data.axis, 50.0f, instance.rangeMin, instance.rangeMax);
+          value = device.ScaleAxisToInputRange(data.axis, value, instance.rangeMin, instance.rangeMax);
+        }
+        _logger.LogDebug($"[UpdateRelatedConnectors] Sending update for {instance.shortId} ({data.devId}, {data.type}, {data.targetId}) with val {value}; orig val: {data.lastValue}; range: {instance.rangeMin}/{instance.rangeMax}");
+        if (value > -1)
+          UpdateTPConnector(instance.shortId, value);
+      }
+    }
+
+    #endregion Connector Updaters
+
     #region Misc. event handlers          ///////////////////////////////////////////
 
-    private void VJoyConnectAction(string act)
+    private void DeviceControlAction(string act, string devId)
     {
+      if (string.IsNullOrWhiteSpace(act) || (GetFullDeviceIdOrDefault(devId) is uint id) && id == 0)
+        return;
+
       switch (act) {
-        case "On":
-          ConnectVJoy();
+        case C.STR_CONNECT:
+          AddDevice(id);
           break;
-        case "Off":
-          DisconnectVJoy();
+        case C.STR_DISCONNECT:
+          RemoveDevice(id);
           break;
-        case "Toggle":
-          if (VJoyConnected())
-            DisconnectVJoy();
+        case C.STR_TOGGLE_CONN:
+          if (VJoyConnected(id))
+            RemoveDevice(id);
           else
-            ConnectVJoy();
+            AddDevice(id);
+          break;
+        case C.STR_RESET:
+          ResetDevice(id);
+          break;
+        case C.STR_REFRESH_REP:
+          RefreshDeviceState(id);
+          break;
+        case C.STR_FORCE_UNPLUG:
+          ForceUnplugDevice(id);
           break;
       }
     }
 
-    private void ConnectVJoy() {
-      SetupVJoyDevice(_settings.VjDeviceId);
-    }
-
-    private void DisconnectVJoy() {
-      if (_vjoyDevice?.IsConnected ?? false) {
-        StoptatusDataTask();  // if it's running
-        _logger.LogDebug($"Relinquishing Device ID {VJoyCurrDevId}.");
-        UpdateTPState(C.IDSTR_STATE_VJSTATE, "0");
-        _vjoyDevice.RelinquishDevice(VJoyCurrDevId);
-      }
-    }
-
-    private void SetStateRefreshRate(uint valueMs) {
+    private void SetStateRefreshRate(uint valueMs)
+    {
       if (valueMs > 0 && valueMs < 100)
         valueMs = 100;
       if (_settings.StateRefreshRate != valueMs) {
@@ -390,51 +771,6 @@ namespace TJoy.TouchPortalPlugin
       }
     }
 
-    private void UpdateTPState(string id, string value) {
-      try {
-        _client.StateUpdate(PluginId + "." + C.IDSTR_CATEGORY_VJOY + ".state." + id, value);
-      }
-      catch (Exception e) {
-        _logger.LogError(e, "Exception in UpdateTPState");
-        Quit();
-      }
-    }
-
-    private void CreateTPState(string id, string descript, string defValue)
-    {
-      try {
-        _client.CreateState(PluginId + "." + C.IDSTR_CATEGORY_VJOY + ".state." + id, descript, defValue);
-        _logger.LogDebug($"Created state '{id}' '{descript}' '{defValue}'");
-      }
-      catch (Exception e) {
-        _logger.LogError(e, "Exception in CreateTPState");
-        Quit();
-      }
-    }
-
-    private void RemoveTPState(string id)
-    {
-      try {
-        _client.RemoveState(PluginId + "." + C.IDSTR_CATEGORY_VJOY + ".state." + id);
-      }
-      catch (Exception) { }
-    }
-
-    private void UpdateTPConnector(string shortId, int value)
-    {
-      try {
-        _client.ConnectorUpdateShort(shortId, value);
-      }
-      catch (Exception e) {
-        _logger.LogError(e, "Exception in UpdateTPConnector");
-        Quit();
-      }
-    }
-
-    /// <summary>
-    /// Handles an array of `Setting` types sent from TP. This could come from either the
-    /// initial `OnInfoEvent` message, or the dedicated `OnSettingsEvent` message.
-    /// </summary>
     private void ProcessPluginSettings(IReadOnlyCollection<Setting> settings)
     {
       if (settings == null)
@@ -448,10 +784,14 @@ namespace TJoy.TouchPortalPlugin
           continue;
         string trimmedVal = s.Value.Trim();
         switch (s.Name) {
-          case C.IDSTR_SETTING_VJDEVID:
+          case C.IDSTR_SETTING_DEF_DEVID:
+            SetDefaultDevice(GetFullDeviceIdOrDefault(trimmedVal));
+            break;
+
+          case C.IDSTR_SETTING_AUTO_CONNECT:
             if (!uint.TryParse(trimmedVal, out value))
               continue;
-            SetVJoyDevice(value);
+            _settings.AutoConnectDevice = value > 0;
             break;
 
           case C.IDSTR_SETTING_STATE_RATE:
@@ -493,7 +833,8 @@ namespace TJoy.TouchPortalPlugin
       _settings.tpSettings = settings;
     }
 
-    #endregion
+    #endregion Misc. event handlers
+
     #region Actions & Connectors handlers         ///////////////////////////////////////////
     // These run on a separate task/thread
 
@@ -506,14 +847,14 @@ namespace TJoy.TouchPortalPlugin
           _eventQueueReadyEvent.Wait(_shutdownToken);
           _eventQueueReadyEvent.Reset();
           while (!_shutdownToken.IsCancellationRequested && _eventQ.TryDequeue(out DataContainerEventBase message)) {
-            if (!ParseAndValidateEvent(message, out var ev))
+            if (!ParseAndValidateEvent(message, out VJEvent ev, out JoyDevice device))
               continue;
             switch (message) {
               case ActionEvent e:
-                HandleActionEvent(ev, e);
+                HandleActionEvent(ev, device, e);
                 break;
               case ConnectorChangeEvent e:
-                HandleConnectorEvent(ev, e);
+                HandleConnectorEvent(ev, device, e);
                 break;
             }
           }
@@ -529,99 +870,119 @@ namespace TJoy.TouchPortalPlugin
 
     // Tries to create a valid VJEvent from a TP action or connector message.
     // Does parsing and validation of attributes common to both message types.
-    private bool ParseAndValidateEvent(DataContainerEventBase message, out VJEvent ev)
+    private bool ParseAndValidateEvent(DataContainerEventBase message, out VJEvent ev, out JoyDevice device)
     {
       var isConn = message.GetType() == typeof(ConnectorChangeEvent);
-      ev = new() { devId = VJoyCurrDevId, btnAction = ButtonAction.None, tpId = message.Id.Split('.').Last() };
-      ev.type = Utils.TpStateNameToEventType(ev.tpId);
+      device = null;
+      // Set up the VJEvent struct with some defaults.
+      ev = new VJEvent() {
+        devId = DefaultDevId,
+        btnAction = ButtonAction.None,
+        tpId = message.Id.Split('.').Last(),
+        // default range is the full range of a slider
+        rangeMin = 0,
+        rangeMax = 100
+      };
+
+      // Try determine the event's control type, button/axis/hat
+      ev.type = Util.TpStateNameToEventType(ev.tpId);
       if (ev.type == ControlType.None) {
         // check for special actions
-        if (ev.tpId == C.IDSTR_ACTION_VJCONN)
-          VJoyConnectAction(message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_ACT_VAL)));
+        if (ev.tpId == C.IDSTR_ACTION_DEVICE_CTRL)
+          DeviceControlAction(message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_ACT_VAL)), message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DEVICE_ID), DefaultDevId.ToString()));
         else
           _logger.LogWarning($"Unknown Action/Connector ID: '{message.Id}'.");
         return false;
       }
-      // validate the target control ID
-      var idStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_TARGET_ID, isConn));
-      if (string.IsNullOrWhiteSpace(idStr)) {
-        _logger.LogWarning($"Required target control ID '{idStr}' is empty or invalid for action ID '{message.Id}'.");
+
+      // Get Device ID, or default
+      var devId = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DEVICE_ID, isConn), C.IDSTR_DEVID_DFLT);
+      ev.devId = GetFullDeviceIdOrDefault(devId);
+      if (ev.devId == 0) {
+        _logger.LogWarning($"Device ID '{devId}' is empty or zero for action ID '{message.Id}'.");
         return false;
       }
-      // for axes the ID is the ending of HID_USAGS enum names
-      if (ev.type == ControlType.Axis) {
-        if (!Enum.TryParse("HID_USAGE_" + idStr, out ev.axis)) {
-          _logger.LogWarning($"Axis ID is invalid: '{idStr}'.");
-          return false;
-        }
-        ev.targetId = (uint)ev.axis;
+
+      // Check if device already exists, if not try to add it here.
+      if (!TryGetDevice(ev.devId, out device) && (!_settings.AutoConnectDevice || (device = AddDevice(ev.devId)) == null)) {
+        _logger.LogWarning($"The Device with ID '{ev.devId}' does not exist or is not configured.");
+        return false;
       }
-      // for everything else the target ID is just the number: 1-4, 1-128
-      else if (!uint.TryParse(idStr, out ev.targetId)) {
-        _logger.LogWarning($"Target control ID/number is invalid: '{idStr}'.");
+
+      // validate the target control ID
+      var idStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_TARGET_ID, isConn));
+      if (string.IsNullOrWhiteSpace(idStr)) {
+        _logger.LogWarning($"Required target control ID '{idStr}' is empty or invalid for action ID '{message.Id}' with device {device.Name}.");
         return false;
       }
 
       switch (ev.type) {
+        case ControlType.Axis:
+          // for axes the ID is the ending of HID_USAGS enum names
+          if (!Enum.TryParse("HID_USAGE_" + idStr, true, out ev.axis) || !device.HasDeviceAxis(ev.axis)) {
+            _logger.LogWarning($"Axis {ev.axis} from string '{idStr}' not valid/available for device {device.Name}.");
+            return false;
+          }
+          ev.targetId = (uint)ev.axis;  // keep a copy here also for convenience
+          break;
+
         case ControlType.Button:
-          if (ev.targetId > _vjoyDevice.ButtonCount) {
-            _logger.LogWarning($"Button Index out of range: {ev.targetId} out of {_vjoyDevice.ButtonCount} for vJoy device {ev.devId}.");
+          if ((ev.targetId = Util.ButtonIndex(device.DeviceType, idStr)) == 0 || ev.targetId > device.ButtonCount) {
+            _logger.LogWarning($"Button Index out of range: {ev.targetId} (from string '{idStr}') out of {device.ButtonCount} for {device.Name}.");
             return false;
           }
           break;
 
         case ControlType.DiscPov:
-          if (ev.targetId > _vjoyDevice.DiscreteHatCount) {
-            _logger.LogWarning($"D-POV Index out of range: {ev.targetId} out of {_vjoyDevice.DiscreteHatCount} for vJoy device {ev.devId}.");
+          if (!uint.TryParse(idStr, out ev.targetId) || (ev.targetId > device.DiscreteHatCount && ev.targetId > device.ContinuousHatCount)) {
+            _logger.LogWarning($"D-POV Index out of range: {ev.targetId} (from string '{idStr}') out of {device.DiscreteHatCount} for {device.Name}.");
             return false;
           }
           {
-            var dirStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_DPOV_DIR, isConn));
+            // Dpad/dpov also needs a direction
+            var dirStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DPOV_DIR, isConn));
             if (string.IsNullOrWhiteSpace(dirStr) || !Enum.TryParse(dirStr, true, out ev.dpovDir)) {
-              _logger.LogWarning($"Could not parse D-POV direction data for POV#: '{ev.targetId}'; direction: '{dirStr}' action: '{message.Id}'.");
+              _logger.LogWarning($"Could not parse D-POV direction in '{message.Id}' for '{device.Name}', control ID '{ev.targetId}', direction: '{dirStr}'.");
               return false;
             }
           }
           break;
 
         case ControlType.ContPov:
-          if (ev.targetId > _vjoyDevice.ContinuousHatCount) {
-            _logger.LogWarning($"C-POV Index out of range: {ev.targetId} out of {_vjoyDevice.ContinuousHatCount} for vJoy device {ev.devId}.");
+          if (!uint.TryParse(idStr, out ev.targetId) || ev.targetId > device.ContinuousHatCount) {
+            _logger.LogWarning($"C-POV Index out of range {ev.targetId} (from string '{idStr}') out of {device.ContinuousHatCount} for {device.Name}.");
             return false;
           }
           ev.axis = HID_USAGES.HID_USAGE_POV;
           break;
 
-        case ControlType.Axis:
-          if (!_vjoyDevice.HasDeviceAxis(ev.axis)) {
-            _logger.LogWarning($"Axis {ev.axis} not available for vJoy device {ev.devId}.");
-            return false;
-          }
-          break;
       }
 
       if (!isConn) {
-        // actions always have the full range of a slider
-        ev.rangeMin = 0;
-        ev.rangeMax = 100;
-        ev.valueStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_ACT_VAL, isConn));
+        ev.valueStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_ACT_VAL, isConn));
         if (string.IsNullOrWhiteSpace(ev.valueStr)) {
           _logger.LogWarning($"Primary value is invalid: '{ev.valueStr}'.");
           return false;
         }
         return true;
       }
-      // Connector, get min/max range for axis or cpov type
+
+      // Connector. Get min/max range and reverse flag for axis or cpov type.
       if (ev.type != ControlType.DiscPov) {
-        var minStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_RNG_MIN, true));
-        var maxStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_RNG_MAX, true));
-        var revStr = message.GetValue(Utils.FullActionDataID(ev.tpId, C.IDSTR_DIR_REVERSE, true));
+        var minStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_RNG_MIN, true));
+        if (!string.IsNullOrWhiteSpace(minStr) && !TryEvaluateValue(minStr, out ev.rangeMin)) {
+          _logger.LogWarning($"Range minimum value invalid for Connector ID '{message.Id}' for '{device.Name}' with control ID '{idStr}', value:  '{minStr}'");
+          return false;
+        }
+        var maxStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_RNG_MAX, true));
+        if (!string.IsNullOrWhiteSpace(maxStr) && !TryEvaluateValue(maxStr, out ev.rangeMax)) {
+          _logger.LogWarning($"Range maximum value invalid for Connector ID '{message.Id}' for '{device.Name}' with control ID '{idStr}', value:  '{maxStr}'");
+          return false;
+        }
+        var revStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DIR_REVERSE, true));
         AxisMovementDir revType = AxisMovementDir.Normal;
-        if (string.IsNullOrWhiteSpace(minStr) || string.IsNullOrWhiteSpace(maxStr) ||
-            (!string.IsNullOrWhiteSpace(revStr) && !Enum.TryParse(revStr, out revType)) ||
-            !TryEvaluateValue(minStr, out ev.rangeMin) ||
-            !TryEvaluateValue(maxStr, out ev.rangeMax)) {
-          _logger.LogWarning($"Required range data  values are empty or invalid for Connector ID '{message.Id}' with control ID '{idStr}';  min/max/rev: '{minStr}'/'{maxStr}/{revStr}.");
+        if (!string.IsNullOrWhiteSpace(revStr) && !Enum.TryParse(revStr, true, out revType)) {
+          _logger.LogWarning($"Reversing type invalid for Connector ID '{message.Id}' for '{device.Name}' with control ID '{idStr}', value: '{revStr}'");
           return false;
         }
         if (revType == AxisMovementDir.Reverse) {
@@ -630,15 +991,17 @@ namespace TJoy.TouchPortalPlugin
           ev.rangeMin = tmpMax;
         }
       }
-      return true;
-    }
 
-    private void HandleActionEvent(VJEvent ev, ActionEvent message)
+      return true;
+    }  // ParseAndValidateEvent
+
+    private void HandleActionEvent(VJEvent ev, JoyDevice device, ActionEvent message)
     {
       // force button up/pov center/axis reset up on "up" held action
       if (message.GetPressState() == Press.Up)
         ev.btnAction = ButtonAction.Up;
 
+      float fValue;
       switch (ev.type) {
         case ControlType.Button:
           if (ev.btnAction == ButtonAction.None && !Enum.TryParse(ev.valueStr, true, out ev.btnAction)) {
@@ -649,10 +1012,25 @@ namespace TJoy.TouchPortalPlugin
 
         case ControlType.DiscPov:
           if (ev.btnAction == ButtonAction.Up) {
-            ev.value = -1;
+            ev.dpovDir = DPovDirection.Center;
+            ev.value = (int)ev.dpovDir;
+            if (ev.targetId > device.DiscreteHatCount) {
+              // convert to CPOV
+              ev.type = ControlType.ContPov;
+              ev.axis = HID_USAGES.HID_USAGE_POV;
+            }
+            //ev.value = (int)DPovDirection.Center;
             break;
           }
-          else if (!Enum.TryParse(ev.valueStr, true, out ev.btnAction)) {
+          if (ev.targetId > device.DiscreteHatCount) {
+            // convert to CPOV
+            ev.type = ControlType.ContPov;
+            ev.axis = HID_USAGES.HID_USAGE_POV;
+            fValue = device.ConvertDpovToCpov(ev.dpovDir) + 50.0f;
+            ev.value = device.ScaleInputToAxisRange(ev.axis, fValue, ev.rangeMin, ev.rangeMax, true);
+            break;
+          }
+          if (!Enum.TryParse(ev.valueStr, true, out ev.btnAction)) {
             _logger.LogWarning($"Could not parse button action type for POV#: '{ev.targetId}'; act: '{ev.valueStr}'.");
             return;
           }
@@ -662,39 +1040,49 @@ namespace TJoy.TouchPortalPlugin
         case ControlType.Axis:
         case ControlType.ContPov:
           if (ev.btnAction == ButtonAction.Up) {
-            if ((ev.value = GetResetValueFromEvent(message, ev.tpId, ev.type)) < -1)
+            if ((fValue = GetResetValueFromEvent(message, ev.tpId, ev.type)) < -1.0f)
               return;
           }
-          else if (!TryEvaluateValue(ev.valueStr, out ev.value)) {
-            _logger.LogWarning($"Cannot parse {Utils.EventTypeToControlName(ev.type)} value for target '{(ev.type == ControlType.Axis ? ev.axis : ev.targetId)}' from '{ev.valueStr}'.");
+          else if (!TryEvaluateValue(ev.valueStr, out fValue)) {
+            _logger.LogWarning($"Cannot parse {Util.EventTypeToControlName(ev.type)} value for target '{(ev.type == ControlType.Axis ? ev.axis : ev.targetId)}' from '{ev.valueStr}'.");
             return;
           }
-          if (ev.value < 0)
+          if (ev.type == ControlType.ContPov && ev.targetId > device.ContinuousHatCount) {
+            // convert to DPOV
+            ev.type = ControlType.DiscPov;
+            ev.dpovDir = device.ConvertCpovToDpov(fValue);
+            ev.value = (int)ev.dpovDir;
             break;
+          }
+          if (fValue < 0.0f) {
+            // center POV
+            ev.value = (int)DPovDirection.Center;
+            break;
+          }
           if (ev.type == ControlType.ContPov)
-            ev.value += 50;
-          ev.value = _vjoyDevice.ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax, true);
+            fValue += 50.0f;
+          ev.value = device.ScaleInputToAxisRange(ev.axis, fValue, ev.rangeMin, ev.rangeMax, true);
           break;
 
         default:
           return;
       }
-      _vjoyDevice.DispatchEvent(ev);
+      device.DispatchEvent(ev);
 
       // check for related connectors
-      if (!_connectorsDict.TryGetValue(Utils.ConnectorDictKey(ev), out ConnectorTrackingData cdata) || cdata.lastValue == ev.value)
+      if (!_connectorsDict.TryGetValue(Util.ConnectorDictKey(ev), out ConnectorTrackingData cdata) || cdata.lastValue == ev.value)
         return;
       cdata.lastValue = ev.value;
       // assume no connectors are being moved at the same time
       cdata.isDown = false;
       cdata.currentShortId = default;
       UpdateRelatedConnectors(cdata);
-    }
+    }  // HandleActionEvent
 
-    private void HandleConnectorEvent(VJEvent ev, ConnectorChangeEvent message)
+    private void HandleConnectorEvent(VJEvent ev, JoyDevice device, ConnectorChangeEvent message)
     {
       bool needUpdate = true;
-      string ckey = Utils.ConnectorDictKey(ev);
+      string ckey = Util.ConnectorDictKey(ev);
       ev.value = message.Value;
 
       if (!_connectorsDict.TryGetValue(ckey, out ConnectorTrackingData cdata)) {
@@ -706,7 +1094,7 @@ namespace TJoy.TouchPortalPlugin
 
       // Try to determine when a connector is released, the equivalent on an action "up" event, but a lot more complicated :(
       long ts = Stopwatch.GetTimestamp();
-      if (!cdata.isDown || Utils.TicksToSecs(ts - cdata.lastUpdate) > C.CONNECTOR_MOVE_TO_SEC) {
+      if (!cdata.isDown || Util.TicksToSecs(ts - cdata.lastUpdate) > C.CONNECTOR_MOVE_TO_SEC) {
         // wasn't pressed, or hasn't changed for a "long" time, so I guess now it is... so far so good.
         cdata.isDown = true;
         cdata.startValue = message.Value;
@@ -726,14 +1114,14 @@ namespace TJoy.TouchPortalPlugin
       switch (ev.type) {
         case ControlType.Axis:
         case ControlType.ContPov:
-          ev.value = _vjoyDevice.ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax, true);
+          ev.value = device.ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax, true);
           _logger.LogDebug($"Axis Connector Event: axe: {ev.axis}; orig val: {message.Value}; new value {ev.value}; range min/max: {ev.rangeMin}/{ev.rangeMax}");
           break;
 
         case ControlType.DiscPov:
           // translate axis slider value to actual dpov direction and a button action
           if (cdata.isDown) {
-            ev.dpovDir = Utils.SliderRangeToDpovRange(ev.value, ev.dpovDir);
+            ev.dpovDir = device.ScaleAxisToDpov(ev.value, ev.dpovDir);
             ev.btnAction = ev.dpovDir == DPovDirection.Center ? ButtonAction.Click : ButtonAction.Down;
             ev.value = (int)ev.dpovDir;
           }
@@ -753,7 +1141,7 @@ namespace TJoy.TouchPortalPlugin
         return;
 
       if (needUpdate)
-        _vjoyDevice.DispatchEvent(ev);
+        device.DispatchEvent(ev);
 
       cdata.lastValue = ev.value;
 
@@ -761,77 +1149,28 @@ namespace TJoy.TouchPortalPlugin
       cdata.currentShortId = string.Empty;
       if (cdata.isDown) {
         // find the short id the connector currently being moved, so that we can exclude it from any "live" updates
-        var mappingId = ev.tpId + "|" + string.Join("|", message.Data.Select(d => d.Id + "=" + d.Value));
+        var mappingId = ev.tpId + "|" + string.Join("|", message.Data.Select(d => d.Key + "=" + d.Value));
         _ = _connectorsLongToShortMap.TryGetValue(mappingId, out cdata.currentShortId);
       }
       //else    // uncomment to disable "live" connector updates of related sliders while one is moving
       UpdateRelatedConnectors(cdata);
-    }
+    }  // HandleConnectorEvent
 
-    // Gets a vJoy device value for the reset attributes specified in an action/connector.
-    // Returns -2 if no reset is to be done.
-    private int GetResetValueFromEvent(DataContainerEventBase message, string actId, ControlType evtype, int startValue = 0)
-    {
-      // Get reset type and value
-      var isConn = message.GetType() == typeof(ConnectorChangeEvent);
-      var rstStr = message.GetValue(Utils.FullActionDataID(actId, C.IDSTR_RESET_TYP, isConn))?.Replace(" ", string.Empty) ?? "None";
-      var rvalStr = message.GetValue(Utils.FullActionDataID(actId, C.IDSTR_RESET_VAL, isConn)) ?? "-2";
-      if (Enum.TryParse(rstStr, true, out CtrlResetMethod rstType) && rstType != CtrlResetMethod.None && TryEvaluateValue(rvalStr, out var customVal))
-        return Utils.GetResetValueForType(rstType, evtype, customVal, startValue);
-      return -2;
-    }
+    #endregion Actions & Connectors handlers
 
-    private void UpdateRelatedConnectors(/*object obj*/ ConnectorTrackingData data)
-    {
-      //if (obj?.GetType() != typeof(ConnectorTrackingData))
-        //return;
-      //var data = (ConnectorTrackingData)obj;
-      foreach (var instance in data.relations) {
-        if (string.IsNullOrEmpty(instance.shortId) || instance.shortId == data.currentShortId)
-          continue;
-
-        int value = data.lastValue;
-        if (data.type == ControlType.DiscPov) {
-          value = Utils.DPovRange2SliderRange(value, instance.dpovDir);
-        }
-        else {
-          if (data.type == ControlType.ContPov && data.lastValue < 0)  // center POV
-            value = _vjoyDevice.ScaleInputToAxisRange(data.axis, 50, instance.rangeMin, instance.rangeMax);
-          value = _vjoyDevice.ScaleAxisToInputRange(data.axis, value, instance.rangeMin, instance.rangeMax);
-        }
-        _logger.LogDebug($"[UpdateRelatedConnectors] Sending update for {instance.shortId} ({data.id}, {data.type}) with val {value}; orig val: {data.lastValue}; range: {instance.rangeMin}/{instance.rangeMax}");
-        if (value > -1)
-          UpdateTPConnector(instance.shortId, value);
-      }
-    }
-
-    private bool TryEvaluateValue(string strValue, out int value)
-    {
-      value = 0;
-      try {
-        value = Convert.ToInt32(_expressionEvaluator.Compute(strValue, null));
-      }
-      catch (Exception e) {
-        _logger.LogWarning(e, $"Failed to convert Action data value '{strValue}' to numeric value.");
-        return false;
-      }
-      return true;
-    }
-
-    #endregion
     #region TP Event Handlers      ///////////////////////////////////////////
 
     public void OnInfoEvent(InfoEvent message)
     {
-      _logger?.LogInformation($"[Info] VersionCode: '{message.TpVersionCode}', VersionString: '{message.TpVersionString}', SDK: '{message.SdkVersion}', PluginVersion: '{message.PluginVersion}', Status: '{message.Status}'");
+      _logger?.LogInformation($"Touch Portal Connected with: TP v{message.TpVersionString}, SDK v{message.SdkVersion}, {C.PLUGIN_SHORT_NAME} Plugin Entry v{message.PluginVersion}, {C.PLUGIN_SHORT_NAME} Client v{Util.GetProductVersionString()} ({Util.GetProductVersionNumber():X})");
+      _logger?.LogDebug($"[Info] Settings: {JsonSerializer.Serialize(message.Settings)}");
       ProcessPluginSettings(message.Settings);
-      _logger?.LogDebug($"[Info] Settings: {JsonSerializer.Serialize(_settings.tpSettings)}");
     }
 
     public void OnSettingsEvent(SettingsEvent message)
     {
+      _logger?.LogDebug($"[OnSettings] Settings: {JsonSerializer.Serialize(message.Values)}");
       ProcessPluginSettings(message.Values);
-      _logger?.LogDebug($"[OnSettings] Settings: {JsonSerializer.Serialize(_settings.tpSettings)}");
     }
 
     public void OnClosedEvent(string message) {
@@ -843,16 +1182,15 @@ namespace TJoy.TouchPortalPlugin
     public void OnActionEvent(ActionEvent message)
     {
       _logger?.LogDebug("[OnAction] PressState: {0}, ActionId: {1}, Data: '{2}'",
-          message.GetPressState(), message.ActionId, string.Join(", ", message.Data.Select(dataItem => $"'{dataItem.Id}': '{dataItem.Value}'")));
+          message.GetPressState(), message.ActionId, string.Join(", ", message.Data.Select(dataItem => $"'{dataItem.Key}' = '{dataItem.Value}'")));
       _eventQ.Enqueue(message);
       _eventQueueReadyEvent.Set();
     }
 
     public void OnConnecterChangeEvent(ConnectorChangeEvent message)
     {
-      _logger?.LogDebug("[OnConnecterChangeEvent] ConnectorId: {0}, Value: {1}, Data: '{2}'",
-        message.ConnectorId, message.Value,
-        string.Join(", ", message.Data.Select(dataItem => $"'{dataItem.Id}': '{dataItem.Value}'")));
+      _logger?.LogDebug("[OnConnecterChangeEvent] ConnectorId: {0}, Value: {1}, Data: '{2}'", message.ConnectorId, message.Value,
+        string.Join(", ", message.Data.Select(dataItem => $"'{dataItem.Key}' = '{dataItem.Value}'")));
       _eventQ.Enqueue(message);
       _eventQueueReadyEvent.Set();
     }
@@ -861,40 +1199,43 @@ namespace TJoy.TouchPortalPlugin
     public void OnShortConnectorIdNotificationEvent(ShortConnectorIdNotificationEvent message)
     {
       _logger.LogDebug($"[ShortConnectorIdNotificationEvent] ConnectorId: {message.ConnectorId}; shortId: {message.ShortId};");
-      // split by pipe
-      var values = message.ConnectorId?.Split('|');
-      if (!values.Any())
-        return;
-      // get our actual connector id
-      string connId = values.First().Split('.').Last();
-      if (string.IsNullOrWhiteSpace(connId) || values.Length < 2)
-        return;
-
-      var evtype = Utils.TpStateNameToEventType(connId);
-      if (evtype == ControlType.None || evtype == ControlType.Button) {
+      // we only use the last part of the connectorId which is meaningful
+      // note that ShortConnectorIdNotificationEvent.ActualConnectorId nvokes the connectorId parser.
+      string connId = message.ActualConnectorId?.Split('.').Last();
+      var connData = message.Data;
+      var evtype = Util.TpStateNameToEventType(connId);
+      if (evtype == ControlType.None || evtype == ControlType.Button || !connData.Any()) {
         _logger.LogWarning($"[OnShortConnectorIdNotificationEvent] Unknown ConnectorId '{connId}' (full: '{message.ConnectorId}')");
         return;
       }
+
+      // stuff we may need to store
       uint targetId = 0;
-      //uint devId = 0;
+      uint devId = DefaultDevId;
       HID_USAGES axis = 0;
       AxisMovementDir reverse = AxisMovementDir.Normal;
-      var idata = new ConnectorInstanceData { shortId = message.ShortId };
+      // the related device, if any (this may change during parsing)
+      JoyDevice device = Device(devId);  // could be null
+      // set up connector instance data with defaults
+      var idata = new ConnectorInstanceData { shortId = message.ShortId, rangeMin = 0, rangeMax = 100, dpovDir = DPovDirection.None };
 
-      // extract the attributes we are interested in from the remaining key=value pairs
-      for (int i = 1, e = values.Length; i < e; ++i) {
-        var keyVal = values[i].Split('=');
-        if (keyVal.Length != 2)
-          continue;
-        var did = keyVal[0].Split('.').Last();
-        var dval = keyVal[1];
-        switch (did) {
+      // extract the attributes we are interested in from the key=value pairs
+      foreach (var data in connData) {
+        switch (data.Key.Split('.').Last()) {
+          case C.IDSTR_DEVICE_ID:
+            // Device ID, or default
+            if ((devId = GetFullDeviceIdOrDefault(data.Value)) == 0)
+              return;   // totally invalid, ignore this whole connector
+            if (devId != DefaultDevId && CheckDeviceId(devId))
+              device = Device(devId);  // could be null, but still track this connector in case the device becomes valid later
+            break;
+
           case C.IDSTR_TARGET_ID:
             if (evtype == ControlType.Axis) {
-              if (Enum.TryParse("HID_USAGE_" + dval, out axis))
+              if (Enum.TryParse("HID_USAGE_" + data.Value, true, out axis))
                 targetId = (uint)axis;
             }
-            else if (!uint.TryParse(dval, out targetId)) {
+            else if (!uint.TryParse(data.Value, out targetId)) {
               targetId = 0;
             }
             else {
@@ -903,33 +1244,33 @@ namespace TJoy.TouchPortalPlugin
             break;
 
           case C.IDSTR_RNG_MIN:
-            if (!int.TryParse(dval, out idata.rangeMin))
-              _vjoyDevice.GetDefaultAxisRange(axis, out idata.rangeMin, out _);
+            if (!int.TryParse(data.Value, out idata.rangeMin))
+              idata.rangeMin = 0;
             break;
 
           case C.IDSTR_RNG_MAX:
-            if (!int.TryParse(dval, out idata.rangeMax))
-              _vjoyDevice.GetDefaultAxisRange(axis, out _, out idata.rangeMax);
+            if (!int.TryParse(data.Value, out idata.rangeMax))
+              idata.rangeMax = 100;
             break;
 
           case C.IDSTR_DPOV_DIR:
-            if (!Enum.TryParse(dval, out idata.dpovDir))
+            if (!Enum.TryParse(data.Value, true, out idata.dpovDir))
               idata.dpovDir = DPovDirection.Center;
             break;
 
           case C.IDSTR_DIR_REVERSE:
-            if (!Enum.TryParse(dval, out reverse))
+            if (!Enum.TryParse(data.Value, true, out reverse))
               reverse = AxisMovementDir.Normal;
             break;
 
-          //case IDSTR_DEVICE_ID:
-          //  if (dval != "default" && !uint.TryParse(dval, out devId))
-          //    devId = 0;
-          //  break;
-
           default:
-            continue;
-        }
+            break;
+        }  // switch
+      }  // loop
+
+      if (devId == 0) {
+        _logger.LogWarning($"[OnShortConnectorIdNotificationEvent] Unknown Device ID '{devId}' for connector ID '{message.ConnectorId}')");
+        return;
       }
       if (targetId == 0) {
         _logger.LogWarning($"[OnShortConnectorIdNotificationEvent] Unknown target ID '{targetId}' for connector ID '{message.ConnectorId}')");
@@ -942,9 +1283,11 @@ namespace TJoy.TouchPortalPlugin
         idata.rangeMin = tmpMax;
       }
 
-      string key = Utils.ConnectorDictKey(connId, targetId);
+      // Get existing connector tracking data based on parsed device, connector, and target fields, or start a new entry.
+      string key = Util.ConnectorDictKey(devId, connId, targetId);
       if (!_connectorsDict.TryGetValue(key, out var cdata)) {
         cdata = new ConnectorTrackingData {
+          devId = devId,
           id = connId,
           type = evtype,
           axis = axis,
@@ -968,33 +1311,33 @@ namespace TJoy.TouchPortalPlugin
         for (var i=0; i < 10 && enmr.MoveNext(); ++i)
           _connectorsLongToShortMap.TryRemove(enmr.Current, out _);
       }
-      var mappingId = connId + "|" + string.Join("|", values[1..^0]);
+      var mappingId = connId + "|" + string.Join("|", connData.Select(d => $"{d.Key}={d.Value}"));
       _connectorsLongToShortMap.TryAdd(mappingId, message.ShortId);
 
-      // Send the current axis value to the connector. Refresh the vJoy state first if needed.
-      if (Utils.TicksToSecs(Stopwatch.GetTimestamp() - _vjoyDevice.DeviceInfo().lastStateUpdate) > 10)
-        _vjoyDevice.RefreshState();
-      switch (evtype) {
-        case ControlType.Axis:
-          cdata.lastValue = Utils.GetVJoyStateReportAxisValue(_vjoyDevice.DeviceState(), (HID_USAGES)cdata.targetId);
-          break;
-        case ControlType.ContPov:
-          cdata.lastValue = Utils.GetVJoyStateReportCPovValue(_vjoyDevice.DeviceState(), cdata.targetId);
-          break;
-        case ControlType.DiscPov:
-          cdata.lastValue = Utils.GetVJoyStateReportDPovValue(_vjoyDevice.DeviceState(), cdata.targetId);
-          break;
-        default:
-          return;
+      // If the device exists, send the current axis value to the connector. Refresh the VJD state first if needed.
+      // do not create a device here, connector data could be ancient
+      if (device != null && RefreshDeviceStateIfNeeded(device))
+        UpdateConnectorsFromState(cdata, device.StateReport());
+    }
+
+    public void OnListChangedEvent(ListChangeEvent message) {
+      _logger.LogDebug($"[OnListChanged] {message.ActionId} / {message.ListId} / {message.InstanceId} = '{message.Value}'  shutdown: {_disposed}");
+      if (string.IsNullOrWhiteSpace(message.Value) || _disposed)
+        return;
+      if (message.ListId.EndsWith(C.IDSTR_DEVICE_ID) && (GetFullDeviceIdOrDefault(message.Value) is uint id) && id > 0) {
+        if (message.ListId.Contains($".{C.IDSTR_DEVTYPE_AXIS}."))
+          UpdateAxisChoices(id, message.ListId, message.InstanceId);
+        else if (message.ListId.Contains($".{C.IDSTR_DEVTYPE_BTN}."))
+          UpdateButtonChoices(id, message.ListId, message.InstanceId);
+        else if (((message.ListId.Contains($".{C.IDSTR_DEVTYPE_DPOV}.") is bool isDpov) && isDpov) || message.ListId.Contains($".{C.IDSTR_DEVTYPE_CPOV}.")) {
+          UpdatePovCountChoices(id, message.ListId, message.InstanceId);
+          if (isDpov && message.ListId.Contains($".{C.IDSTR_EL_ACTION}."))
+            UpdateDPovChoices(id, message.ListId, message.InstanceId);
+        }
       }
-      UpdateRelatedConnectors(cdata);
     }
 
     // Unused handlers below here.
-
-    public void OnListChangedEvent(ListChangeEvent message) {
-      _logger.LogDebug($"[OnListChanged] {message.ListId}/{message.ActionId}/{message.InstanceId} '{message.Value}'");
-    }
 
     public void OnBroadcastEvent(BroadcastEvent message) {
       _logger.LogDebug($"[Broadcast] Event: '{message.Event}', PageName: '{message.PageName}'");
@@ -1008,9 +1351,69 @@ namespace TJoy.TouchPortalPlugin
       _logger.LogDebug($"Unhanded message: {jsonMessage}");
     }
 
-    #endregion
-    #region Archive        ///////////////////////////////////////////
+    #endregion TP Event Handlers
 
-    #endregion
+    #region TP Client commands                  ///////////////////////////////////////////
+
+    private void UpdateTPState(string id, string value)
+    {
+      try {
+        if (_client.IsConnected)
+          _client.StateUpdate(Util.StateIdStr(id), value);
+      }
+      catch (Exception e) {
+        _logger.LogError(e, "Exception in UpdateTPState");
+        Quit();
+      }
+    }
+
+    private void CreateTPState(string id, string descript, string defValue)
+    {
+      try {
+        if (_client.IsConnected)
+          _client.CreateState(Util.StateIdStr(id), descript, defValue);
+        _logger.LogDebug($"Created state '{id}' '{descript}' '{defValue}'");
+      }
+      catch (Exception e) {
+        _logger.LogError(e, "Exception in CreateTPState");
+        Quit();
+      }
+    }
+
+    private void RemoveTPState(string id)
+    {
+      try {
+        if (_client.IsConnected)
+          _client.RemoveState(Util.StateIdStr(id));
+      }
+      catch { /* we may be doing this after the socket is closed, so ignore errors */ }
+    }
+
+    private void UpdateTPConnector(string shortId, int value)
+    {
+      try {
+        if (_client.IsConnected)
+          _client.ConnectorUpdateShort(shortId, value);
+      }
+      catch (Exception e) {
+        _logger.LogError(e, "Exception in UpdateTPConnector");
+        Quit();
+      }
+    }
+
+    private void UpdateTPChoices(string stateId, string[] values, string instanceId = null)
+    {
+      try {
+        if (_client.IsConnected)
+          _client.ChoiceUpdate(stateId, values, instanceId);
+      }
+      catch (Exception e) {
+        _logger.LogError(e, "Exception in UpdateTPChoices");
+        Quit();
+      }
+    }
+
+    #endregion TP Client commands
+
   }
 }
