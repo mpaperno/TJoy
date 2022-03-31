@@ -17,17 +17,18 @@ namespace TouchPortalSDK.Clients
     public class TouchPortalClient : ITouchPortalClient, IMessageHandler
     {
         /// <inheritdoc cref="ITouchPortalClient" />
-        public bool IsConnected { get => _touchPortalSocket?.IsConnected ?? false; }
+        public bool IsConnected => !_closing && (_touchPortalSocket?.IsConnected ?? false);
 
         private readonly ILogger<TouchPortalClient> _logger;
         private readonly ITouchPortalEventHandler _eventHandler;
         private readonly ITouchPortalSocket _touchPortalSocket;
 
-        private readonly CancellationTokenSource _cts;
-        private readonly CancellationToken _cancellationToken;
+        private CancellationTokenSource _cts;
+        private CancellationToken _cancellationToken;
         private readonly ConcurrentQueue<byte[]> _incommingMessages;
         private readonly ManualResetEventSlim _messageReadyEvent;
-        private Task _incomingMessageTask;
+        private Task _incomingMessageTask = null;
+        private bool _closing = false;
 
         private readonly ManualResetEvent _infoWaitHandle;
 
@@ -44,8 +45,6 @@ namespace TouchPortalSDK.Clients
             _touchPortalSocket = socketFactory.Create(this);
             _logger = loggerFactory?.CreateLogger<TouchPortalClient>();
 
-            _cts = new CancellationTokenSource();
-            _cancellationToken = _cts.Token;
             _incommingMessages = new ConcurrentQueue<byte[]>();
             _messageReadyEvent = new ManualResetEventSlim();
             _infoWaitHandle = new ManualResetEvent(false);
@@ -64,6 +63,8 @@ namespace TouchPortalSDK.Clients
 
             //Listen:
             // set up message processing queue and task
+            _cts = new CancellationTokenSource();
+            _cancellationToken = _cts.Token;
             _incommingMessages.Clear();
             _logger?.LogDebug("Starting message processing queue task.");
             _incomingMessageTask = Task.Run(MessageHandlerTask);
@@ -97,17 +98,33 @@ namespace TouchPortalSDK.Clients
 
         private void Close(string message, Exception exception = default)
         {
+            if (_closing)
+                return;
+            _closing = true;
+
             _logger?.LogInformation(exception, $"Closing TouchPortal Plugin: '{message}'");
 
             _eventHandler.OnClosedEvent(message);
 
             _touchPortalSocket?.CloseSocket();
 
-            _cts.Cancel();
+            if (_incomingMessageTask == null)  // shouldn't happen but JIC
+                return;
+
+            _cts?.Cancel();
             if (_incomingMessageTask.Status == TaskStatus.Running && !_incomingMessageTask.Wait(2000))
                 _logger?.LogWarning("The incoming message processor task is hung!");
 
-            _incomingMessageTask.Dispose();
+            try { _incomingMessageTask.Dispose(); }
+            catch { /* ignore in case it hung */ }
+            _incomingMessageTask = null;
+            _cts?.Dispose();
+            _cts = null;
+        }
+
+        private async void CloseAsync(string message)
+        {
+            await Task.Run(delegate { Close(message); });
         }
 
         #endregion
@@ -274,7 +291,7 @@ namespace TouchPortalSDK.Clients
                                   _eventHandler.OnInfoEvent(infoEvent);
                                   break;
                               case CloseEvent _:
-                                  Close("TouchPortal sent a Plugin close event.");
+                                  CloseAsync("TouchPortal sent a Plugin close event.");
                                   break;
                               case ListChangeEvent listChangeEvent:
                                   _eventHandler.OnListChangedEvent(listChangeEvent);
