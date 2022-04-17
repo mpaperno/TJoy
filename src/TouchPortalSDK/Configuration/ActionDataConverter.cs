@@ -13,8 +13,12 @@ namespace TouchPortalSDK.Configuration
             var ret = new ActionData();
             var actionDataDicts = JsonSerializer.Deserialize<ActionData[]>(ref reader);
             if (actionDataDicts != null){
-                foreach (var dict in actionDataDicts)
-                    ret.TryAdd(dict.GetValueOrDefault("id"), dict.GetValueOrDefault("value"));
+                foreach (var dict in actionDataDicts) {
+                    string id = dict.GetValueOrDefault("id", string.Empty);
+                    if (TouchPortalOptions.ActionDataIdSeparator != '\0')
+                        id = id.Split(TouchPortalOptions.ActionDataIdSeparator, StringSplitOptions.RemoveEmptyEntries)[^1];
+                    ret.TryAdd(id, dict.GetValueOrDefault("value", string.Empty));
+                }
             }
             return ret;
         }
