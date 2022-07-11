@@ -14,9 +14,9 @@ $DistroName = "TJoy-TouchPortal-Plugin"
 $BinarytName = "TJoyTouchPortalPlugin"
 
 $CurrentDir = [System.IO.Path]::GetDirectoryName($myInvocation.MyCommand.Path)
-
 $DistFolderPath = "$CurrentDir\..\packages-dist"
 $PluginFilesPath = "$DistFolderPath\$DistroName"
+$BinFilesPath = "$PluginFilesPath\dist"
 
 if (Test-Path $PluginFilesPath) {
   Write-Information "Cleaning '$ProjectName' packages-dist folder '$PluginFilesPath'..." -InformationAction Continue
@@ -28,13 +28,8 @@ if(-Not ([string]::IsNullOrEmpty($VersionSuffix))) {
   $VersionSuffixCommand = "--version-suffix"
 }
 
-if ($Clean) {
-  Write-Information "Cleaning '$ProjectName' component....`n" -InformationAction Continue
-  dotnet clean "$ProjectName" --configuration $Configuration -p:Platform=$Platform
-}
-
 Write-Information "Publishing '$ProjectName' component to '$PluginFilesPath'...`n" -InformationAction Continue
-dotnet publish "$ProjectName" --output "$PluginFilesPath\dist" --configuration $Configuration -p:Platform=$Platform $VersionSuffixCommand $VersionSuffix -r "win-$Platform" --self-contained true
+dotnet publish "$ProjectName" --output "$BinFilesPath" --configuration $Configuration -p:Platform=$Platform $VersionSuffixCommand $VersionSuffix -r "win-$Platform"
 
 # Copy Entry.tp, Readme, Documentation, CHANGELOG to publish
 copy "$ProjectName/entry.tp" "$PluginFilesPath"
@@ -44,7 +39,7 @@ copy "..\LICENSE" "$PluginFilesPath\LICENSE.txt"
 copy "..\CHANGELOG.md" "$PluginFilesPath"
 
 # Get version
-$FileVersion = (Get-Command $PluginFilesPath\dist\$BinarytName.dll).FileVersionInfo.FileVersion
+$FileVersion = (Get-Command $BinFilesPath\$BinarytName.dll).FileVersionInfo.FileVersion
 
 # Create TPP File
 $TppFile = "$DistFolderPath\$DistroName-$FileVersion.tpp"
@@ -52,6 +47,11 @@ if (Test-Path $TppFile) {
   Remove-Item $TppFile -Force
 }
 & "C:\Program Files\7-Zip\7z.exe" a "$TppFile" "$DistFolderPath\*" -tzip `-xr!*.tpp
+
+if ($Clean) {
+  Write-Information "Cleaning '$ProjectName' component....`n" -InformationAction Continue
+  dotnet clean "$ProjectName" --configuration $Configuration -p:Platform=$Platform -r "win-$Platform"
+}
 
 if ($BuildAgent) {
   exit 0
