@@ -281,9 +281,15 @@ namespace TJoy.TouchPortalPlugin
       return -2;
     }
 
-    private static bool RefreshDeviceStateIfNeeded(JoyDevice device)
+    private bool RefreshDeviceStateIfNeeded(JoyDevice device)
     {
-      return (Util.TicksToSecs(Stopwatch.GetTimestamp() - device.LastStateUpdate) < C.VJD_STATE_MAX_AGE_SEC || device.RefreshState());
+      if (Util.TicksToSecs(Stopwatch.GetTimestamp() - device.LastStateUpdate) < C.VJD_STATE_MAX_AGE_SEC)
+        return true;
+      if (device.RefreshState())
+        return true;
+      if (device.SupportsStateReport)
+        RemoveDevice(device.Id);
+      return false;
     }
 
     private void UpdateTPChoicesFromListId(string listId, string[] values, string instanceId = null)
@@ -513,8 +519,13 @@ namespace TJoy.TouchPortalPlugin
 
     private void SendStateReport(JoyDevice device)
     {
-      if (_client == null || device == null || !_client.IsConnected || !device.RefreshState())
+      if (_client == null || device == null || !_client.IsConnected)
         return;
+      if (!device.RefreshState()) {
+        if (device.SupportsStateReport)
+          RemoveDevice(device.Id);  // terminal error
+        return;
+      }
 
       VJDeviceInfo devInfo = device.DeviceInfo();
       var axisInfo = device.AxisInfo;
