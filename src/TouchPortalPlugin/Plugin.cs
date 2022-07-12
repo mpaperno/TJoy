@@ -573,7 +573,7 @@ namespace TJoy.TouchPortalPlugin
       if (!_joystickStatesDict.TryGetValue(stateId, out int prevValue)) {
         prevValue = -2;
         _joystickStatesDict.Add(stateId, value);
-        CreateTPState(stateId, $"{C.PLUGIN_SHORT_NAME} - {devName} {devIndex} - {Util.EventTypeToControlName(ev)} {ctrlName} value", Util.GetDefaultValueForEventType(ev).ToString());
+        CreateTPState(stateId, $"{C.PLUGIN_SHORT_NAME} - {devName} {devIndex} - {Util.EventTypeToControlName(ev)} {ctrlName} value", Util.GetDefaultValueForEventType(ev).ToString(), $"{devName} {devIndex}");
       }
       if (prevValue != value) {
         _joystickStatesDict[stateId] = value;
@@ -1467,11 +1467,11 @@ namespace TJoy.TouchPortalPlugin
       }
     }
 
-    private void CreateTPState(string id, string descript, string defValue)
+    private void CreateTPState(string id, string descript, string defValue, string group = default)
     {
       try {
         if (_client.IsConnected)
-          _client.CreateState(Util.StateIdStr(id), descript, defValue);
+          _client.CreateState(Util.StateIdStr(id), descript, defValue, group);
         _logger.LogDebug($"Created state '{id}' '{descript}' '{defValue}'");
       }
       catch (Exception e) {
