@@ -1,6 +1,6 @@
 {
-	"sdk": 5,
-	"version": 90500,
+	"sdk": 6,
+	"version": 1000001,
 	"name": "TJoy Touch Portal Plugin",
 	"id": "us.wdg.max.tpp.tjoy",
 	"configuration": {
@@ -52,7 +52,7 @@
 		{
 			"id": "us.wdg.max.tpp.tjoy.main",
 			"name": "TJoy",
-			"imagepath": "%TP_PLUGIN_FOLDER%TJoyTouchPortalPlugin/vJoyTP.png",
+			"imagepath": "%TP_PLUGIN_FOLDER%TJoy-TouchPortal-Plugin/vJoyTP.png",
 			"actions": [
 				{
 					"id": "us.wdg.max.tpp.tjoy.act.device",
@@ -120,7 +120,7 @@
 					"id": "us.wdg.max.tpp.tjoy.act.dpov",
 					"prefix": "TJoy",
 					"name": "D-Pad / D-POV Hat Action",
-					"description": "Activate a D-pad or directional hat swtich.",
+					"description": "Activate a D-pad or directional hat switch.",
 					"type": "communicate",
 					"tryInline": true,
 					"hasHoldFunctionality": true,
@@ -159,8 +159,8 @@
 				{
 					"id": "us.wdg.max.tpp.tjoy.act.cpov",
 					"prefix": "TJoy",
-					"name": "Continous 360° POV Hat Action",
-					"description": "Activate a continuous 360 degree hat swtich. Center value is -1 and position range is 0 - 100%.",
+					"name": "Continuous 360° POV Hat Action",
+					"description": "Activate a continuous 360 degree hat switch. Center value is -1 and position range is 0 - 100%.",
 					"type": "communicate",
 					"tryInline": true,
 					"hasHoldFunctionality": true,
@@ -247,6 +247,40 @@
 							"default": "50"
 						}
 					]
+				},
+				{
+					"id": "us.wdg.max.tpp.tjoy.act.setPos",
+					"prefix": "TJoy",
+					"name": "Set Slider Position",
+					"description": "Move a slider connected to a joystick axis to a specific position. Does not affect the axis value. Position range is 0 - 100.",
+					"type": "communicate",
+					"tryInline": true,
+					"hasHoldFunctionality": false,
+					"format": "Set Slider Connected to Device {$us.wdg.max.tpp.tjoy.act.setPos.devId$} on Axis {$us.wdg.max.tpp.tjoy.act.setPos.id$} to position {$us.wdg.max.tpp.tjoy.act.setPos.value$}",
+					"data": [
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.setPos.devId",
+							"label": "Device",
+							"type": "choice",
+							"default": "Default",
+							"valueChoices": [ "Default" ]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.setPos.id",
+							"label": "vJoy Axis",
+							"type": "choice",
+							"valueChoices": [
+								"X", "Y", "Z", "RX", "RY", "RZ", "SL0", "SL1",
+								"POV 1", "POV 2", "POV 3", "POV 4"
+							]
+						},
+						{
+							"id": "us.wdg.max.tpp.tjoy.act.setPos.value",
+							"label": "Value (0 - 100)",
+							"type": "text",
+							"default": "0"
+						}
+					]
 				}
 			],
 			"connectors": [
@@ -310,8 +344,8 @@
 				{
 					"id": "us.wdg.max.tpp.tjoy.conn.cpov",
 					"prefix": "TJoy",
-					"name": "Continous 360° POV Hat Slider",
-					"description": "Activate a continuous 360 degree hat swtich.",
+					"name": "Continuous 360° POV Hat Slider",
+					"description": "Activate a continuous 360 degree hat switch.",
 					"format": "Move\nDevice {$us.wdg.max.tpp.tjoy.conn.cpov.devId$} POV {$us.wdg.max.tpp.tjoy.conn.cpov.id$} in range {$us.wdg.max.tpp.tjoy.conn.cpov.min$}% to {$us.wdg.max.tpp.tjoy.conn.cpov.max$}%{$us.wdg.max.tpp.tjoy.conn.cpov.reverse$} with\nreset to {$us.wdg.max.tpp.tjoy.conn.cpov.reset$} (custom\n rst value {$us.wdg.max.tpp.tjoy.conn.cpov.resetValue$}%)",
 					"data": [
 						{
@@ -366,7 +400,7 @@
 					"id": "us.wdg.max.tpp.tjoy.conn.dpov",
 					"prefix": "TJoy",
 					"name": "D-Pad / D-POV Hat Slider",
-					"description": "Activate a 4-way D-pad/hat swtich.",
+					"description": "Activate a 4-way D-pad/hat switch.",
 					"format": "Move\nDevice {$us.wdg.max.tpp.tjoy.conn.dpov.devId$} POV {$us.wdg.max.tpp.tjoy.conn.dpov.id$} axis {$us.wdg.max.tpp.tjoy.conn.dpov.dir$} with\nreset to {$us.wdg.max.tpp.tjoy.conn.dpov.reset$}",
 					"data": [
 						{
