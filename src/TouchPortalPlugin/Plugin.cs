@@ -504,8 +504,10 @@ namespace TJoy.TouchPortalPlugin
       _logger.LogDebug("State updater task started.");
       try {
         while (_settings.StateRefreshRate > 0 && !_stateTaskShutdownToken.IsCancellationRequested) {
-          foreach (var device in _devices.Values)
-            SendStateReport(device);
+          foreach (var device in _devices.Values) {
+            if (device.IsConnected)
+              SendStateReport(device);
+          }
           await Task.Delay((int)_settings.StateRefreshRate, _stateTaskShutdownToken);
         }
       }
