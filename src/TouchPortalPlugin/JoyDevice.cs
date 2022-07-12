@@ -121,19 +121,19 @@ namespace TJoy
       VJDSTATUS status = _vjoy.GetVJDStatus(Id);
       switch (status) {
         case VJDSTATUS.VJD_STAT_OWN:
-          _logger.LogInformation($"Device {Name} is already owned by this feeder");
+          _logger.LogInformation("Device {name} is already owned by this feeder", Name);
           return true;
         case VJDSTATUS.VJD_STAT_FREE:
-          _logger.LogInformation($"Device {Name} is free!");
+          _logger.LogInformation("Device {name} is free!", Name);
           return true;
         case VJDSTATUS.VJD_STAT_BUSY:
-          _logger.LogWarning($"Device {Name} is already owned by another feeder. Cannot continue.");
+          _logger.LogWarning("Device {name} is already owned by another feeder. Cannot continue.", Name);
           return false;
         case VJDSTATUS.VJD_STAT_MISS:
-          _logger.LogWarning($"Device {Name} is not installed or disabled. Cannot continue.");
+          _logger.LogWarning("Device {name} is not installed or disabled. Cannot continue.", Name);
           return false;
         default:
-          _logger.LogWarning($"Device {Name} general error. Cannot continue.");
+          _logger.LogWarning("Device {name} general error. Cannot continue.", Name);
           return false;
       };
     }
@@ -156,6 +156,12 @@ namespace TJoy
       if (!CheckConnected()) {
         int hDev = 0;
         var res = _vjoy.AcquireDev(_vjdInfo.index, IsVJoy ? VGEN_DEV_TYPE.vJoy : VGEN_DEV_TYPE.vXbox, ref hDev);
+        if (res == VJRESULT.UNSUCCESSFUL) {
+          // workaround issue with attempting to re-connect right after disconnect will first return wrong result.
+          System.Threading.Thread.Yield();
+          if (CheckConnected())
+            res = VJRESULT.SUCCESS;
+        }
         if (res != VJRESULT.SUCCESS && res != VJRESULT.DEVICE_ALREADY_ATTACHED) {
           _logger.LogWarning($"Connect() failed with error: {res}.");
           return false;
