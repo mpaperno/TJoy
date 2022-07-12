@@ -752,7 +752,7 @@ namespace TJoy.TouchPortalPlugin
             value = device.ScaleInputToAxisRange(data.axis, 50.0f, instance.rangeMin, instance.rangeMax);
           value = device.ScaleAxisToInputRange(data.axis, value, instance.rangeMin, instance.rangeMax);
         }
-        _logger.LogDebug($"[UpdateRelatedConnectors] Sending update for {instance.shortId} ({data.devId}, {data.type}, {data.targetId}) with val {value}; orig val: {data.lastValue}; range: {instance.rangeMin}/{instance.rangeMax}");
+        _logger.LogTrace($"[UpdateRelatedConnectors] Sending update for {instance.shortId} ({data.devId}, {data.type}, {data.targetId}) with val {value}; orig val: {data.lastValue}; range: {instance.rangeMin}/{instance.rangeMax}");
         if (value > -1)
           UpdateTPConnector(instance.shortId, value);
       }
@@ -1293,7 +1293,7 @@ namespace TJoy.TouchPortalPlugin
     // convoluted malarkey to try and track which slider instances operate on the same axes, and the whole "short ID" business
     public void OnShortConnectorIdNotificationEvent(ShortConnectorIdNotificationEvent message)
     {
-      _logger.LogDebug($"[ShortConnectorIdNotificationEvent] ConnectorId: {message.ConnectorId}; shortId: {message.ShortId};");
+      _logger.LogTrace($"[ShortConnectorIdNotificationEvent] ConnectorId: {message.ConnectorId}; shortId: {message.ShortId};");
       // we only use the last part of the connectorId which is meaningful
       // note that ShortConnectorIdNotificationEvent.ActualConnectorId invokes the connectorId parser.
       string connId = message.ActualConnectorId?.Split('.').Last();
