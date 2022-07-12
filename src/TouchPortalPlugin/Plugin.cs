@@ -629,9 +629,10 @@ namespace TJoy.TouchPortalPlugin
       }
       // also update the device control action
       UpdateTPChoices(C.PLUGIN_ID + "." + C.IDSTR_EL_ACTION + "." + C.IDSTR_ACTION_DEVICE_CTRL + "." + C.IDSTR_DEVICE_ID, valarry);
+      UpdateTPChoices(C.PLUGIN_ID + "." + C.IDSTR_EL_ACTION + "." + C.IDSTR_ACTION_SET_POS + "." + C.IDSTR_DEVICE_ID, valarry);
     }
 
-    private void UpdateAxisChoices(uint devId, string listId, string instanceId)
+    string[] GetAxisChoices(uint devId)
     {
       DeviceType devType = Util.DeviceIdToType(devId);
       IReadOnlyCollection<VJAxisInfo> axeInfo;
@@ -644,7 +645,12 @@ namespace TJoy.TouchPortalPlugin
         if (axe.usage != HID_USAGES.HID_USAGE_POV)
           values.Add($"{Util.AxisName(devType, axe.usage)}");
       }
-      UpdateTPChoicesFromListId(listId, values.ToArray(), instanceId);
+      return values.ToArray();
+    }
+
+    private void UpdateAxisChoices(uint devId, string listId, string instanceId)
+    {
+      UpdateTPChoicesFromListId(listId, GetAxisChoices(devId), instanceId);
     }
 
     private void UpdateButtonChoices(uint devId, string listId, string instanceId)
@@ -664,8 +670,8 @@ namespace TJoy.TouchPortalPlugin
     private void UpdatePovCountChoices(uint devId, string listId, string instanceId)
     {
       DeviceType devType = Util.DeviceIdToType(devId);
-      int maxPovs = devType == DeviceType.VJoy ? 4 : 1;
-      string[] values = new string [maxPovs];
+      int maxPovs = Util.GetMaxPovs(devType);
+      string[] values = new string[maxPovs];
       for (var i = 1; i <= maxPovs; ++i)
         values[i-1] = i.ToString();
       UpdateTPChoicesFromListId(listId, values, instanceId);
@@ -680,6 +686,14 @@ namespace TJoy.TouchPortalPlugin
         values[(int)i + 1] = i.ToString();
       UpdateTPChoicesFromListId(listId, values, instanceId, C.IDSTR_DPOV_DIR);
     }
+
+    // Updates list of exes and POVs for selected device in Set Slider Position action.
+    private void UpdateAllAxisChoices(uint devId, string listId, string instanceId)
+    {
+      List<string> list = new (GetAxisChoices(devId));
+      for (int i = 1, e = Util.GetMaxPovs(Util.DeviceIdToType(devId)); i <= e; ++i)
+        list.Add($"POV {i}");
+      UpdateTPChoicesFromListId(listId, list.ToArray(), instanceId);
     }
 
     #endregion List Updaters
@@ -848,6 +862,68 @@ namespace TJoy.TouchPortalPlugin
       _settings.tpSettings = settings;
     }
 
+    void SetConnectorPosition(ActionEvent message, VJEvent ev)
+    {
+      // Get Device ID, or default
+      var devId = message.GetValue(C.IDSTR_DEVICE_ID, C.IDSTR_DEVID_DFLT);
+      ev.devId = GetFullDeviceIdOrDefault(devId);
+      if (ev.devId == 0 || !TryGetDevice(ev.devId, out JoyDevice device)) {
+        _logger.LogWarning($"Device ID '{ev.devId}' is empty or invalid for action ID '{message.Id}'.");
+        return;
+      }
+
+      // validate the target control ID
+      var idStr = message.GetValue(C.IDSTR_TARGET_ID);
+      if (string.IsNullOrWhiteSpace(idStr)) {
+        _logger.LogWarning($"Required target control ID is empty or invalid for action ID '{message.Id}' with device {device.Name}.");
+        return;
+      }
+
+      ev.type = ControlType.Axis;
+      if (idStr.StartsWith("POV")) {
+        idStr = idStr.Substring(4);
+
+        if (!uint.TryParse(idStr, out ev.targetId)) {
+          _logger.LogWarning($"Could not parse POV Index from string '{idStr}' for action ID '{message.Id}' with device {device.Name}.");
+          return;
+        }
+        ev.axis = HID_USAGES.HID_USAGE_POV;
+        ev.tpId = device.ContinuousHatCount > 0 ? C.IDSTR_DEVTYPE_CPOV : C.IDSTR_DEVTYPE_DPOV;
+      }
+      else {
+        // for axes the ID is the ending of HID_USAGS enum names
+        if (!Enum.TryParse("HID_USAGE_" + idStr, true, out ev.axis)) {
+          _logger.LogWarning($"Axis {ev.axis} from string '{idStr}' not valid for action ID '{message.Id}' with device {device.Name}.");
+          return;
+        }
+        ev.targetId = (uint)ev.axis;
+        ev.tpId = C.IDSTR_DEVTYPE_AXIS;
+      }
+
+      // get the position value
+      ev.valueStr = message.GetValue(C.IDSTR_ACT_VAL);
+      if (string.IsNullOrWhiteSpace(ev.valueStr)) {
+        _logger.LogWarning($"Position value is empty for action ID '{message.Id}'.");
+        return;
+      }
+      if (!TryEvaluateValue(ev.valueStr, out float fValue)) {
+        _logger.LogWarning($"Cannot parse {Util.EventTypeToControlName(ev.type)} value for target '{(ev.type == ControlType.Axis ? ev.axis : ev.targetId)}' from '{ev.valueStr}'.");
+        return;
+      }
+      //ev.value = (int)Math.Round(fValue, 0);
+      ev.value = device.ScaleInputToAxisRange(ev.axis, fValue, ev.rangeMin, ev.rangeMax, true);
+
+      // check for related connectors
+      if (!_connectorsDict.TryGetValue(Util.ConnectorDictKey(ev), out ConnectorTrackingData cdata) || cdata.lastValue == ev.value)
+        return;
+      cdata.lastValue = ev.value;
+      // assume no connectors are being moved at the same time
+      //cdata.isDown = false;
+      //cdata.currentShortId = default;
+      UpdateRelatedConnectors(cdata);
+
+    }
+
     #endregion Misc. event handlers
 
     #region Actions & Connectors handlers         ///////////////////////////////////////////
@@ -905,6 +981,8 @@ namespace TJoy.TouchPortalPlugin
         // check for special actions
         if (ev.tpId == C.IDSTR_ACTION_DEVICE_CTRL)
           DeviceControlAction(message.GetValue(C.IDSTR_ACT_VAL), message.GetValue(C.IDSTR_DEVICE_ID, DefaultDevId.ToString()));
+        else if (ev.tpId == C.IDSTR_ACTION_SET_POS)
+          SetConnectorPosition((ActionEvent)message, ev);
         else
           _logger.LogWarning($"Unknown Action/Connector ID: '{message.Id}'.");
         return false;
@@ -1354,6 +1432,8 @@ namespace TJoy.TouchPortalPlugin
           if (isDpov && listParts[0] == C.IDSTR_EL_ACTION)
             UpdateDPovChoices(id, message.ListId, message.InstanceId);
         }
+        else if (listParts[1] == C.IDSTR_ACTION_SET_POS)
+          UpdateAllAxisChoices(id, message.ListId, message.InstanceId);
       }
     }
 

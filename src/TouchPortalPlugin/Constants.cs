@@ -59,6 +59,7 @@ namespace TJoy.Constants
     internal const string IDSTR_STATE_GAMEPAD_LED    = "led";
 
     internal const string IDSTR_ACTION_DEVICE_CTRL   = "device";
+    internal const string IDSTR_ACTION_SET_POS       = "setPos";
 
     internal const string STR_ON           = "On";
     internal const string STR_OFF          = "Off";

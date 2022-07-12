@@ -278,6 +278,14 @@ namespace TJoy.Utilities
       };
     }
 
+    internal static int GetMaxPovs(DeviceType devType)
+    {
+      return devType switch {
+        DeviceType.VJoy => 4,
+        _ => 1,
+      };
+    }
+
     internal static int GetDefaultValueForEventType(ControlType evtype)
     {
       return evtype switch {
