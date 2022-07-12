@@ -292,9 +292,9 @@ namespace TJoy.TouchPortalPlugin
       return false;
     }
 
-    private void UpdateTPChoicesFromListId(string listId, string[] values, string instanceId = null)
+    private void UpdateTPChoicesFromListId(string listId, string[] values, string instanceId = null, string target = C.IDSTR_TARGET_ID)
     {
-      UpdateTPChoices($"{listId[0..^C.IDSTR_DEVICE_ID.Length]}{C.IDSTR_TARGET_ID}", values, instanceId);
+      UpdateTPChoices($"{listId[0..^C.IDSTR_DEVICE_ID.Length]}{target}", values, instanceId);
     }
 
     #endregion Helpers
@@ -678,7 +678,8 @@ namespace TJoy.TouchPortalPlugin
       string[] values = new string[(int)maxDir + 2];
       for (var i = DPovDirection.Center; i <= maxDir; ++i)
         values[(int)i + 1] = i.ToString();
-      UpdateTPChoicesFromListId(listId, values, instanceId);
+      UpdateTPChoicesFromListId(listId, values, instanceId, C.IDSTR_DPOV_DIR);
+    }
     }
 
     #endregion List Updaters
