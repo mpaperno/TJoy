@@ -109,9 +109,6 @@ if you pause for a fraction of a second before releasing the slider.
   * I have a request in with the TP authors to improve this detection so it is more reliable, since it is vital for things
 like "self-centering" joystick axes. Please help by also requesting this feature on the Touch Portal Discord server or via other support means.
 
-* If you manually disconnect a vJoy device (via the provided action), the next attempt to re-connect to the same device will fail.
-  But tring to connect a second time will succeed.
-
 
 ## Update Notifications
 
@@ -196,7 +193,7 @@ D-Pad directions are also available as individual buttons.
         along the axis, and also allow the axis to "wrap" back to its starting point and continue up to maximum range a second time (if you don't want the
         wrapping effect then you need to calibrate  that axis in your game or Windows, same as above).
 
-* `Continous 360° POV Hat (Action/Slider)` - Controls any of the 4 possible vJoy 360 degree "continuous" POV hats which move from center in any direction.
+* `Continuous 360° POV Hat (Action/Slider)` - Controls any of the 4 possible vJoy 360 degree "continuous" POV hats which move from center in any direction.
   The operation is nearly identical to the Axis controls described above, with the main difference being that "center" on a POV hat is a neutral position,
   when no other input is being given.
   * Again the Action options here are the same as for Axis controls where you can just set whichever value you wish the POV to move to when the action
@@ -211,12 +208,18 @@ D-Pad directions are also available as individual buttons.
 
 #### Plugin
 
-* `Virtual Joystick Device Actions` - Lastly there is a simple action to control the connection to devices being used as well as some other options:
+* `Virtual Joystick Device Actions` - Controls the connection to devices being used as well as some other options:
   * `Toggle`, `Connect` or `Disconnect` a specific device.
   * `Reset` all the device controls to neutral/default values (center axes, release buttons, etc).
   * `Refresh Report` to manually request a position state report (see States).
   * `Force Unplug` a gamepad device. If it happens that a virtual gamepad doesn't get properly removed/freed (either by _TJoy_ itsself or another application)
     this is a way to force its removal and will allow _TJoy_ (or another application) to use that device again.
+* `Set Slider Position` - Sets any TP slider(s) which are connected to the specified VJD and axis/POV to a specified position (0-100).
+  This is intended to compensate for the lack of any built-in way in Touch Portal to visually set a slider position to reflect some value.
+  * It does _not_ affect the actual joystick axis value, only the visual slider(s) position.
+  * Could be used with any State or TP Value to show external feedback on an axis. For example to reflect a simulated vehicle throttle position when it is moved
+    externally (not via the Touch Portal slider).
+  * The position value must evaluate to numeric in the range of 0 to 100. Basic math operators (`+`, `-`, `*`, `/`, `%`, parenthesis) can be included in the position value.
 
 ### States
 
@@ -227,7 +230,7 @@ These are only sent if enabled in the plugin's Settings. See notes for `Position
 "Y" or "Ly" for an axis, etc.
 * `<Device> - Button <N>` - `0` for off and `1` for on (pressed)
 * `<Device> - Axis <N>` - A value in the range of 0 - 100 reflecting axis position, or a "raw" range (0 - 32,767 for vJoy) if so configured in the plugin's settings.
-* `<Device> - Continous Hat <N>` - A value in the range of 0 - 100 reflecting POV hat axis position or `-1` indicating neutral state. Or, a "raw" range
+* `<Device> - Continuous Hat <N>` - A value in the range of 0 - 100 reflecting POV hat axis position or `-1` indicating neutral state. Or, a "raw" range
   (-1 through 35,900 for vJoy) if so configured in the plugin's settings.
 * `<Device> - Discrete Hat <N>` - This will be a string representing a compass D-Pad/POV direction, one of `North`, `East`, `South`, `West` for 4-way hats (vJoy)
   and adding `NorthEast`, `SouthEast`, `SouthWest` and `NorthWest` for 8-way gamepad D-Pads.
