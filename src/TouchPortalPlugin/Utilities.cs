@@ -40,8 +40,6 @@ namespace TJoy.Utilities
   internal static class Util
   {
 
-    internal static string ActionIdStr(string id, bool isConn = false) => C.PLUGIN_ID + "." + (isConn ? C.IDSTR_EL_CONNECTOR + "." : C.IDSTR_EL_ACTION + ".") + id;
-    internal static string ActionDataIdStr(string actId, string dataId, bool isConn = false) => ActionIdStr(actId, isConn) + "." + dataId;
     internal static string StateIdStr(string id) => C.PLUGIN_ID + "." + C.IDSTR_EL_STATE + "." + id;
     internal static string ConnectorDictKey(uint devId, string actId, uint tgtId) => $"{devId}:{actId}:{tgtId}";
     internal static string ConnectorDictKey(in VJEvent ev) => ConnectorDictKey(ev.devId, ev.tpId, ev.targetId);

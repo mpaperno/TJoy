@@ -86,6 +86,9 @@ namespace TJoy.TouchPortalPlugin
       _eventWorkerTask.ConfigureAwait(false);
       _shutdownToken = _shutdownCts.Token;
 
+      TouchPortalOptions.ActionDataIdSeparator = '.';
+      TouchPortalOptions.ValidateCommandParameters = false;
+
       //Environment.SetEnvironmentVariable("VJOYINTERFACELOGLEVEL", "1");  // uncomment to enable vJoy SDK logging (rather verbose)
       //Environment.SetEnvironmentVariable("VJOYINTERFACELOGFILE", "logs\\vjoy.log");
     }
@@ -271,8 +274,8 @@ namespace TJoy.TouchPortalPlugin
     {
       // Get reset type and value
       var isConn = message.GetType() == typeof(ConnectorChangeEvent);
-      var rstStr = message.GetValue(Util.ActionDataIdStr(actId, C.IDSTR_RESET_TYP, isConn))?.Replace(" ", string.Empty) ?? "None";
-      var rvalStr = message.GetValue(Util.ActionDataIdStr(actId, C.IDSTR_RESET_VAL, isConn)) ?? "-2";
+      var rstStr = message.GetValue(C.IDSTR_RESET_TYP)?.Replace(" ", string.Empty) ?? "None";
+      var rvalStr = message.GetValue(C.IDSTR_RESET_VAL) ?? "-2";
       if (Enum.TryParse(rstStr, true, out CtrlResetMethod rstType) && rstType != CtrlResetMethod.None && TryEvaluateValue(rvalStr, out int customVal))
         return Util.GetResetValueForType(rstType, evtype, customVal, startValue);
       return -2;
@@ -889,17 +892,17 @@ namespace TJoy.TouchPortalPlugin
       if (ev.type == ControlType.None) {
         // check for special actions
         if (ev.tpId == C.IDSTR_ACTION_DEVICE_CTRL)
-          DeviceControlAction(message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_ACT_VAL)), message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DEVICE_ID), DefaultDevId.ToString()));
+          DeviceControlAction(message.GetValue(C.IDSTR_ACT_VAL), message.GetValue(C.IDSTR_DEVICE_ID, DefaultDevId.ToString()));
         else
           _logger.LogWarning($"Unknown Action/Connector ID: '{message.Id}'.");
         return false;
       }
 
       // Get Device ID, or default
-      var devId = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DEVICE_ID, isConn), C.IDSTR_DEVID_DFLT);
+      var devId = message.GetValue(C.IDSTR_DEVICE_ID, C.IDSTR_DEVID_DFLT);
       ev.devId = GetFullDeviceIdOrDefault(devId);
       if (ev.devId == 0) {
-        _logger.LogWarning($"Device ID '{devId}' is empty or zero for action ID '{message.Id}'.");
+        _logger.LogWarning($"Device ID '{ev.devId}' is empty or invalid for action ID '{message.Id}'.");
         return false;
       }
 
@@ -910,9 +913,9 @@ namespace TJoy.TouchPortalPlugin
       }
 
       // validate the target control ID
-      var idStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_TARGET_ID, isConn));
+      var idStr = message.GetValue(C.IDSTR_TARGET_ID);
       if (string.IsNullOrWhiteSpace(idStr)) {
-        _logger.LogWarning($"Required target control ID '{idStr}' is empty or invalid for action ID '{message.Id}' with device {device.Name}.");
+        _logger.LogWarning($"Required target control ID is empty or invalid for action ID '{message.Id}' with device {device.Name}.");
         return false;
       }
 
@@ -940,7 +943,7 @@ namespace TJoy.TouchPortalPlugin
           }
           {
             // Dpad/dpov also needs a direction
-            var dirStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DPOV_DIR, isConn));
+            var dirStr = message.GetValue(C.IDSTR_DPOV_DIR);
             if (string.IsNullOrWhiteSpace(dirStr) || !Enum.TryParse(dirStr, true, out ev.dpovDir)) {
               _logger.LogWarning($"Could not parse D-POV direction in '{message.Id}' for '{device.Name}', control ID '{ev.targetId}', direction: '{dirStr}'.");
               return false;
@@ -959,7 +962,7 @@ namespace TJoy.TouchPortalPlugin
       }
 
       if (!isConn) {
-        ev.valueStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_ACT_VAL, isConn));
+        ev.valueStr = message.GetValue(C.IDSTR_ACT_VAL);
         if (string.IsNullOrWhiteSpace(ev.valueStr)) {
           _logger.LogWarning($"Primary value is invalid: '{ev.valueStr}'.");
           return false;
@@ -969,17 +972,17 @@ namespace TJoy.TouchPortalPlugin
 
       // Connector. Get min/max range and reverse flag for axis or cpov type.
       if (ev.type != ControlType.DiscPov) {
-        var minStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_RNG_MIN, true));
+        var minStr = message.GetValue(C.IDSTR_RNG_MIN);
         if (!string.IsNullOrWhiteSpace(minStr) && !TryEvaluateValue(minStr, out ev.rangeMin)) {
           _logger.LogWarning($"Range minimum value invalid for Connector ID '{message.Id}' for '{device.Name}' with control ID '{idStr}', value:  '{minStr}'");
           return false;
         }
-        var maxStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_RNG_MAX, true));
+        var maxStr = message.GetValue(C.IDSTR_RNG_MAX);
         if (!string.IsNullOrWhiteSpace(maxStr) && !TryEvaluateValue(maxStr, out ev.rangeMax)) {
           _logger.LogWarning($"Range maximum value invalid for Connector ID '{message.Id}' for '{device.Name}' with control ID '{idStr}', value:  '{maxStr}'");
           return false;
         }
-        var revStr = message.GetValue(Util.ActionDataIdStr(ev.tpId, C.IDSTR_DIR_REVERSE, true));
+        var revStr = message.GetValue(C.IDSTR_DIR_REVERSE);
         AxisMovementDir revType = AxisMovementDir.Normal;
         if (!string.IsNullOrWhiteSpace(revStr) && !Enum.TryParse(revStr, true, out revType)) {
           _logger.LogWarning($"Reversing type invalid for Connector ID '{message.Id}' for '{device.Name}' with control ID '{idStr}', value: '{revStr}'");
@@ -1200,7 +1203,7 @@ namespace TJoy.TouchPortalPlugin
     {
       _logger.LogDebug($"[ShortConnectorIdNotificationEvent] ConnectorId: {message.ConnectorId}; shortId: {message.ShortId};");
       // we only use the last part of the connectorId which is meaningful
-      // note that ShortConnectorIdNotificationEvent.ActualConnectorId nvokes the connectorId parser.
+      // note that ShortConnectorIdNotificationEvent.ActualConnectorId invokes the connectorId parser.
       string connId = message.ActualConnectorId?.Split('.').Last();
       var connData = message.Data;
       var evtype = Util.TpStateNameToEventType(connId);
@@ -1324,14 +1327,19 @@ namespace TJoy.TouchPortalPlugin
       _logger.LogDebug($"[OnListChanged] {message.ActionId} / {message.ListId} / {message.InstanceId} = '{message.Value}'  shutdown: {_disposed}");
       if (string.IsNullOrWhiteSpace(message.Value) || _disposed)
         return;
-      if (message.ListId.EndsWith(C.IDSTR_DEVICE_ID) && (GetFullDeviceIdOrDefault(message.Value) is uint id) && id > 0) {
-        if (message.ListId.Contains($".{C.IDSTR_DEVTYPE_AXIS}."))
+      var listParts = message.ListId.Split('.');
+      if (listParts.Length < 3)
+        return;
+      listParts = listParts[^3..];
+
+      if (listParts[2] == C.IDSTR_DEVICE_ID && (GetFullDeviceIdOrDefault(message.Value) is uint id) && id > 0) {
+        if (listParts[1] == C.IDSTR_DEVTYPE_AXIS)
           UpdateAxisChoices(id, message.ListId, message.InstanceId);
-        else if (message.ListId.Contains($".{C.IDSTR_DEVTYPE_BTN}."))
+        else if (listParts[1] == C.IDSTR_DEVTYPE_BTN)
           UpdateButtonChoices(id, message.ListId, message.InstanceId);
-        else if (((message.ListId.Contains($".{C.IDSTR_DEVTYPE_DPOV}.") is bool isDpov) && isDpov) || message.ListId.Contains($".{C.IDSTR_DEVTYPE_CPOV}.")) {
+        else if ((((listParts[1] == C.IDSTR_DEVTYPE_DPOV) is bool isDpov) && isDpov) || listParts[1] == C.IDSTR_DEVTYPE_CPOV) {
           UpdatePovCountChoices(id, message.ListId, message.InstanceId);
-          if (isDpov && message.ListId.Contains($".{C.IDSTR_EL_ACTION}."))
+          if (isDpov && listParts[0] == C.IDSTR_EL_ACTION)
             UpdateDPovChoices(id, message.ListId, message.InstanceId);
         }
       }
