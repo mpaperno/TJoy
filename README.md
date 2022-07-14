@@ -6,6 +6,8 @@
 
 # TJoy - Touch Joystick Virtual Controller Project
 
+<p align="center"><img src="https://user-images.githubusercontent.com/1366615/178935496-19a2dac5-84fe-4d93-ab24-385bed2f243a.png" /></p>
+
 ## TJoy Touch Portal Plugin
 
 This project is currently implemented as a "plugin" for the [Touch Portal](https://www.touch-portal.com) macro launcher software,
