@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -14,38 +15,67 @@ using System.Runtime.InteropServices;
 ///  According to https://msdn.microsoft.com/en-us/library/windows/desktop/hh405052(v=vs.85).aspx
 ///  (Assuming XUSB subtype  1 - Gamepad)
 ///
-///  vJoy      | Xbox
-///  -----------------------
+///  vJoy      | XBox              | DualShock4
+///  ------------------------------------------
 ///  X         | X
 ///  Y         | Y
 ///  Z         | Trigger (R)
-///  Rx        | Rx
-///  Ry        | Ry
-///  Rz        | Trigger (L)
-///  Button 1  | A
-///  Button 2  | B
-///  Button 3  | X
-///  Button 4  | Y
-///  Button 5  | Left Bumper (LB) A.K.A Left Shoulder
-///  Button 6  | Right Bumper (RB) A.K.A Right Shoulder
-///  Button 7  | Back
-///  Button 8  | Start
-///  Button 9  | Guide
-///  Button 10 | Left Thumb (LT)
-///  Button 11 | Right Thumb (RT)
+///  RX        | Rx
+///  RY        | Ry
+///  RZ        | Trigger (L)
+///  Button 1  | A                 | Cross
+///  Button 2  | B                 | Circle
+///  Button 3  | X                 | Square
+///  Button 4  | Y                 | Triangle
+///  Button 5  | Left Bumper (LB)  | Left Shoulder (L1)
+///  Button 6  | Right Bumper (RB) | Right Shoulder (R1)
+///  Button 7  | Back              | Share
+///  Button 8  | Start             | Options
+///  Button 9  | Guide             | PS
+///  Button 10 | Left Thumb (LT)   | L3
+///  Button 11 | Right Thumb (RT)  | R3
+///  Button 12 | DPad Up
+///  Button 13 | DPad Right
+///  Button 14 | DPad Down
+///  Button 15 | DPad Left
+///  Button 16 | DPad NE
+///  Button 17 | DPad SE
+///  Button 18 | DPad SW
+///  Button 19 | DPad NW
+///  Button 20 | -                 | Left Trigger (L2)
+///  Button 21 | -                 | Right Trigger (R2)
+///  Button 22 | -                 | TouchPad (TP)
 ///
 ///  Axis Serial number is:
-///    | vJoy    |vXbox
+///    | vJoy    | XBox/DS4
 ///  --------------------------
-///  1 | X       | X
-///  2 | Y       | Y
-///  3 | Z       | Trigger (R)
+///  1 | X       | Lx
+///  2 | Y       | Ly
+///  3 | Z       | Right Trigger / R2
 ///  4 | RX      | Rx
 ///  5 | RY      | Ry
-///  6 | RZ      | Trigger (L)
+///  6 | RZ      | Left Trigger / L2
 ///  7 | Slider0 | -
 ///  8 | Slider1 | -
 ///
+
+public enum VGEN_DEV_TYPE
+{
+    UnknownDevice = -1,
+    vJoy = 0,
+    vXbox = 1000,
+    vgeXbox = 2000,
+    vgeDS4 = 3000
+};
+
+[Flags]
+public enum VGEN_POV_TYPE : byte
+{
+    PovTypeUnknown = 0,
+    PovTypeDiscrete = 0x01,
+    PovTypeContinuous = 0x02,
+    PovTypeAny = PovTypeDiscrete | PovTypeContinuous,
+};
 
 public enum HID_USAGES : ushort
 {
@@ -89,7 +119,55 @@ public enum XINPUT_BUTTONS : ushort
     DPAD_DOWN_RIGHT = DPAD_DOWN | DPAD_RIGHT,
     DPAD_DOWN_LEFT  = DPAD_DOWN | DPAD_LEFT,
     DPAD_MASK       = 0x000F,
+};
+
+[Flags]
+public enum DS4_BUTTONS
+{
+    DS4_BUTTON_THUMB_RIGHT      = 1 << 15,
+    DS4_BUTTON_THUMB_LEFT       = 1 << 14,
+    DS4_BUTTON_OPTIONS          = 1 << 13,
+    DS4_BUTTON_SHARE            = 1 << 12,
+    DS4_BUTTON_TRIGGER_RIGHT    = 1 << 11,
+    DS4_BUTTON_TRIGGER_LEFT     = 1 << 10,
+    DS4_BUTTON_SHOULDER_RIGHT   = 1 << 9,
+    DS4_BUTTON_SHOULDER_LEFT    = 1 << 8,
+    DS4_BUTTON_TRIANGLE         = 1 << 7,
+    DS4_BUTTON_CIRCLE           = 1 << 6,
+    DS4_BUTTON_CROSS            = 1 << 5,
+    DS4_BUTTON_SQUARE           = 1 << 4,
+    DS4_BUTTON_DPAD_NONE        = 0x0008,
+    DS4_BUTTON_DPAD_NORTHWEST   = 0x0007,
+    DS4_BUTTON_DPAD_WEST        = 0x0006,
+    DS4_BUTTON_DPAD_SOUTHWEST   = 0x0005,
+    DS4_BUTTON_DPAD_SOUTH       = 0x0004,
+    DS4_BUTTON_DPAD_SOUTHEAST   = 0x0003,
+    DS4_BUTTON_DPAD_EAST        = 0x0002,
+    DS4_BUTTON_DPAD_NORTHEAST   = 0x0001,
+    DS4_BUTTON_DPAD_NORTH       = 0x0000,
+    DS4_DPAD_MASK               = 0x000F,
+};
+
+[Flags]
+public enum DS4_SPECIAL_BUTTONS : byte
+{
+    DS4_SPECIAL_BUTTON_PS       = 1 << 0,
+    DS4_SPECIAL_BUTTON_TOUCHPAD = 1 << 1
 }
+
+public enum DPOV_DIRECTION : short
+{
+    DPOV_None = -2,
+    DPOV_Center = -1,
+    DPOV_North = 0,
+    DPOV_East,
+    DPOV_South,
+    DPOV_West,
+    DPOV_NorthEast,
+    DPOV_SouthEast,
+    DPOV_SouthWest,
+    DPOV_NorthWest,
+};
 
 public enum VJDSTATUS : short
 {
@@ -186,12 +264,6 @@ public enum FFBOP
     EFF_STOP = 3, // EFFECT STOP
 };
 
-public enum VGEN_DEV_TYPE
-{
-    vJoy,
-    vXbox
-};
-
 
 namespace vGenInterfaceWrap
 {
@@ -210,7 +282,18 @@ namespace vGenInterfaceWrap
         private static WrapFfbCbFunc wf;
         private static GCHandle hFfbUserData;
 
-        [StructLayout(LayoutKind.Sequential)] public struct JoystickState
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DeviceInfo
+        {
+            public UInt16 ProdId;  // USB PID
+            public UInt16 VendId;  // USB VID
+            public UInt32 Serial;   // Serial No/ID
+            public UInt32 ColorBar;  // DS4
+            public byte LedNumber;  // XBox
+        };
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct JoystickState
         {
             public byte bDevice;
             public Int32 Throttle;
@@ -241,7 +324,8 @@ namespace vGenInterfaceWrap
             public UInt32 ButtonsEx3;
         };
 
-        [StructLayout(LayoutKind.Sequential)] public struct GamepadState
+        [StructLayout(LayoutKind.Sequential)]
+        public struct GamepadState
         {
             public XINPUT_BUTTONS Buttons;
             public byte LeftTrigger;
@@ -252,7 +336,21 @@ namespace vGenInterfaceWrap
             public short ThumbRY;
         };
 
-        [StructLayout(LayoutKind.Sequential)] public struct XInputState
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DualShock4State
+        {
+            public byte ThumbLX;
+            public byte ThumbLY;
+            public byte ThumbRX;
+            public byte ThumbRY;
+            public ushort Buttons;
+            public DS4_SPECIAL_BUTTONS Special;
+            public byte LeftTrigger;
+            public byte RightTrigger;
+        };
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct XInputState
         {
             public UInt32 PacketNumber;
             public GamepadState Gamepad;
@@ -414,18 +512,20 @@ namespace vGenInterfaceWrap
         public static byte XINPUT_GAMEPAD_DPAD_DOWN = 2;
         public static byte XINPUT_GAMEPAD_DPAD_LRFT = 4;
         public static byte XINPUT_GAMEPAD_DPAD_RIGHT = 8;
+
         /***************************************************/
         /***** Import from file vGenInterface.dll (C) ******/
         /***************************************************/
+
         #region Backward compatibility API (vJoy)
 
 
         /////	General driver data
-        [DllImport("vGenInterface.dll", EntryPoint = "GetvJoyVersion")]
-        private static extern short _GetvJoyVersion();
+        [DllImport("vGenInterface.dll")]
+        public static extern short GetvJoyVersion();
 
-        [DllImport("vGenInterface.dll", EntryPoint = "vJoyEnabled")]
-        private static extern bool _vJoyEnabled();
+        [DllImport("vGenInterface.dll")]
+        public static extern bool vJoyEnabled();
 
         [DllImport("vGenInterface.dll", EntryPoint = "GetvJoyProductString")]
         private static extern IntPtr _GetvJoyProductString();
@@ -436,75 +536,75 @@ namespace vGenInterfaceWrap
         [DllImport("vGenInterface.dll", EntryPoint = "GetvJoySerialNumberString")]
         private static extern IntPtr _GetvJoySerialNumberString();
 
-        [DllImport("vGenInterface.dll", EntryPoint = "DriverMatch")]
-        private static extern bool _DriverMatch(ref UInt32 DllVer, ref UInt32 DrvVer);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool DriverMatch(ref UInt32 DllVer, ref UInt32 DrvVer);
 
         /////	vJoy Device properties
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDButtonNumber")]
-        private static extern int _GetVJDButtonNumber(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern int GetVJDButtonNumber(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDDiscPovNumber")]
-        private static extern int _GetVJDDiscPovNumber(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern int GetVJDDiscPovNumber(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDContPovNumber")]
-        private static extern int _GetVJDContPovNumber(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern int GetVJDContPovNumber(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDAxisExist")]
-        private static extern UInt32 _GetVJDAxisExist(UInt32 rID, HID_USAGES Axis);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool GetVJDAxisExist(UInt32 rID, HID_USAGES Axis);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDAxisMax")]
-        private static extern bool _GetVJDAxisMax(UInt32 rID, HID_USAGES Axis, ref long Max);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool GetVJDAxisMax(UInt32 rID, HID_USAGES Axis, ref long Max);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDAxisMin")]
-        private static extern bool _GetVJDAxisMin(UInt32 rID, HID_USAGES Axis, ref long Min);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool GetVJDAxisMin(UInt32 rID, HID_USAGES Axis, ref long Min);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDAxisRange")]
-        private static extern bool _GetVJDAxisRange(UInt32 rID, HID_USAGES Axis, ref Int32 Min, ref Int32 Max);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool GetVJDAxisRange(UInt32 rID, HID_USAGES Axis, ref Int32 Min, ref Int32 Max);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "isVJDExists")]
-        private static extern bool _isVJDExists(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool isVJDExists(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetOwnerPid")]
-        private static extern int _GetOwnerPid(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern int GetOwnerPid(UInt32 rID);
 
         /////	Write access to vJoy Device - Basic
-        [DllImport("vGenInterface.dll", EntryPoint = "AcquireVJD")]
-        private static extern bool _AcquireVJD(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool AcquireVJD(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "RelinquishVJD")]
-        private static extern void _RelinquishVJD(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern void RelinquishVJD(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "UpdateVJD")]
-        private static extern bool _UpdateVJD(UInt32 rID, ref JoystickState pData);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool UpdateVJD(UInt32 rID, ref JoystickState pData);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVJDStatus")]
-        private static extern int _GetVJDStatus(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJDSTATUS GetVJDStatus(UInt32 rID);
 
         //// Reset functions
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetVJD")]
-        private static extern bool _ResetVJD(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool ResetVJD(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetAll")]
-        private static extern bool _ResetAll();
+        [DllImport("vGenInterface.dll")]
+        public static extern bool ResetAll();
 
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetButtons")]
-        private static extern bool _ResetButtons(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool ResetButtons(UInt32 rID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetPovs")]
-        private static extern bool _ResetPovs(UInt32 rID);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool ResetPovs(UInt32 rID);
 
         ////// Write data
-        [DllImport("vGenInterface.dll", EntryPoint = "SetAxis")]
-        private static extern bool _SetAxis(Int32 Value, UInt32 rID, HID_USAGES Axis);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool SetAxis(Int32 Value, UInt32 rID, HID_USAGES Axis);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtn")]
-        private static extern bool _SetBtn(bool Value, UInt32 rID, Byte nBtn);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool SetBtn(bool Value, UInt32 rID, Byte nBtn);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDiscPov")]
-        private static extern bool _SetDiscPov(Int32 Value, UInt32 rID, uint nPov);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool SetDiscPov(Int32 Value, UInt32 rID, uint nPov);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetContPov")]
-        private static extern bool _SetContPov(Int32 Value, UInt32 rID, uint nPov);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool SetContPov(Int32 Value, UInt32 rID, uint nPov);
 
         [DllImport("vGenInterface.dll", EntryPoint = "RegisterRemovalCB", CallingConvention = CallingConvention.Cdecl)]
         private extern static void _RegisterRemovalCB(WrapRemovalCbFunc cb, IntPtr data);
@@ -528,7 +628,9 @@ namespace vGenInterfaceWrap
             UserRemCB(complete,  First, obj);
         }
 
-        // Force Feedback (FFB)
+        //////////  Force Feedback (FFB)
+        #region Force Feedback (FFB)
+
         [DllImport("vGenInterface.dll", EntryPoint = "FfbRegisterGenCB", CallingConvention = CallingConvention.Cdecl)]
         private extern static void _FfbRegisterGenCB(WrapFfbCbFunc cb, IntPtr data);
 
@@ -551,12 +653,6 @@ namespace vGenInterfaceWrap
             UserFfbCB(data, obj);
         }
 
-        [DllImport("vGenInterface.dll", EntryPoint = "FfbStart")]
-        private static extern bool _FfbStart(UInt32 rID);
-
-        [DllImport("vGenInterface.dll", EntryPoint = "FfbStop")]
-        private static extern bool _FfbStop(UInt32 rID);
-
         [DllImport("vGenInterface.dll", EntryPoint = "IsDeviceFfb")]
         private static extern bool _IsDeviceFfb(UInt32 rID);
 
@@ -575,11 +671,6 @@ namespace vGenInterfaceWrap
 
         [DllImport("vGenInterface.dll", EntryPoint = "Ffb_h_EBI")]
         private static extern UInt32 _Ffb_h_EBI(IntPtr Packet, ref Int32 Index);
-
-#pragma warning disable 618
-        [DllImport("vGenInterface.dll", EntryPoint = "Ffb_h_Eff_Const")]
-        private static extern UInt32 _Ffb_h_Eff_Const(IntPtr Packet, ref FFB_EFF_CONST Effect);
-#pragma warning restore 618
 
         [DllImport("vGenInterface.dll", EntryPoint = "Ffb_h_Eff_Report")]
         private static extern UInt32 _Ffb_h_Eff_Report(IntPtr Packet, ref FFB_EFF_REPORT Effect);
@@ -610,8 +701,10 @@ namespace vGenInterfaceWrap
 
          [DllImport("vGenInterface.dll", EntryPoint = "Ffb_h_Eff_Constant")]
          private static extern UInt32 _Ffb_h_Eff_Constant(IntPtr Packet, ref FFB_EFF_CONSTANT ConstantEffect);
-        #endregion Backward compatibility API (vJoy)
 
+        #endregion Force Feedback (FFB)
+
+        #endregion Backward compatibility API (vJoy)
 
         #region vXbox API
 
@@ -624,201 +717,253 @@ namespace vGenInterfaceWrap
         //////////////////////////////////////////////////////////////////////////////////////
 
         // Virtual vXbox bus information
-        [DllImport("vGenInterface.dll", EntryPoint = "isVBusExist")]
-        private static extern VJRESULT _isVBusExist();
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isVBusExist();
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVBusVersion")]
-        private static extern UInt32 _GetVBusVersion();
+        [DllImport("vGenInterface.dll")]
+        public static extern UInt32 GetVBusVersion();
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetNumEmptyBusSlots")]
-        private static extern VJRESULT _GetNumEmptyBusSlots(ref Byte nSlots);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetNumEmptyBusSlots(ref Byte nSlots);
 
         // Device Status (Plugin/Unplug and check ownership)
-        [DllImport("vGenInterface.dll", EntryPoint = "isControllerPluggedIn")]
-        private static extern VJRESULT _isControllerPluggedIn(UInt32 UserIndex, ref bool Exist);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isControllerPluggedIn(UInt32 UserIndex, ref bool Exist);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "isControllerOwned")]
-        private static extern VJRESULT _isControllerOwned(UInt32 UserIndex, ref Boolean Exist);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isControllerOwned(UInt32 UserIndex, ref Boolean Exist);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVXAxisRange")]
-        private static extern VJRESULT _GetVXAxisRange(UInt32 UserIndex, HID_USAGES Axis, ref Int32 Min, ref Int32 Max);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetVXAxisRange(UInt32 UserIndex, HID_USAGES Axis, ref Int32 Min, ref Int32 Max);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "PlugIn")]
-        private static extern VJRESULT _PlugIn(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT PlugIn(UInt32 UserIndex);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "PlugInNext")]
-        private static extern VJRESULT _PlugInNext(ref UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT PlugInNext(ref UInt32 UserIndex);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "UnPlug")]
-        private static extern VJRESULT _UnPlug(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT UnPlug(UInt32 UserIndex);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "UnPlugForce")]
-        private static extern VJRESULT _UnPlugForce(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT UnPlugForce(UInt32 UserIndex);
 
         // Reset Devices
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetController")]
-        private static extern VJRESULT _ResetController(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT ResetController(UInt32 UserIndex);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetAllControllers")]
-        private static extern VJRESULT _ResetAllControllers();
-
-        // Button functions: Per-button Press/Release
-        [DllImport("vGenInterface.dll", EntryPoint = "SetButton")]
-        private static extern VJRESULT _SetButton(UInt32 UserIndex, UInt16 Button, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT ResetAllControllers();
 
 #if SPECIFICRESET
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetControllerBtns")]
-        private static extern VJRESULT _ResetControllerBtns(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT ResetControllerBtns(UInt32 UserIndex);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "ResetControllerDPad")]
-        private static extern VJRESULT _ResetControllerDPad(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT ResetControllerDPad(UInt32 UserIndex);
 #endif // SPECIFICRESET
 
+        // Button functions: Per-button Press/Release
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetButton(UInt32 UserIndex, UInt16 Button, Boolean Press);
+
 #if SPECIFICBUTTONS
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnA")]
-        private static extern VJRESULT _SetBtnA(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnA(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnB")]
-        private static extern VJRESULT _SetBtnB(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnB(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnX")]
-        private static extern VJRESULT _SetBtnX(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnX(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnY")]
-        private static extern VJRESULT _SetBtnY(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnY(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnLT")]
-        private static extern VJRESULT _SetBtnLT(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnLT(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnRT")]
-        private static extern VJRESULT _SetBtnRT(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll"")]
+        public static extern VJRESULT SetBtnRT(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnLB")]
-        private static extern VJRESULT _SetBtnLB(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnLB(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnRB")]
-        private static extern VJRESULT _SetBtnRB(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnRB(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnStart")]
-        private static extern VJRESULT _SetBtnStart(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnStart(UInt32 UserIndex, Boolean Press);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetBtnBack")]
-        private static extern VJRESULT _SetBtnBack(UInt32 UserIndex, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetBtnBack(UInt32 UserIndex, Boolean Press);
 #endif // SPECIFICBUTTONS
 
-
         // Trigger/Axis functions: Set value in the range
-        [DllImport("vGenInterface.dll", EntryPoint = "SetGamepadAxis")]
-        private static extern VJRESULT _SetGamepadAxis(UInt32 UserIndex, HID_USAGES Axis, Int16 Value);
-
-        [DllImport("vGenInterface.dll", EntryPoint = "SetTriggerL")]
-        private static extern VJRESULT _SetTriggerL(UInt32 UserIndex, Byte Value);
-
-        [DllImport("vGenInterface.dll", EntryPoint = "SetTriggerR")]
-        private static extern VJRESULT _SetTriggerR(UInt32 UserIndex, Byte Value);
-
-        [DllImport("vGenInterface.dll", EntryPoint = "SetAxisLx")]
-        private static extern VJRESULT _SetAxisLx(UInt32 UserIndex, Int16 Value);
-
-        [DllImport("vGenInterface.dll", EntryPoint = "SetAxisLy")]
-        private static extern VJRESULT _SetAxisLy(UInt32 UserIndex, Int16 Value);
-
-        [DllImport("vGenInterface.dll", EntryPoint = "SetAxisRx")]
-        private static extern VJRESULT _SetAxisRx(UInt32 UserIndex, Int16 Value);
-
-        [DllImport("vGenInterface.dll", EntryPoint = "SetAxisRy")]
-        private static extern VJRESULT _SetAxisRy(UInt32 UserIndex, Int16 Value);
-
-
-        // DPAD Functions
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDpad")]
-        private static extern VJRESULT _SetDpad(UInt32 UserIndex, Byte Value);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetGamepadAxis(UInt32 UserIndex, HID_USAGES Axis, Int16 Value);
 
 #if SPECIFICBUTTONS
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDpadUp")]
-        private static extern VJRESULT _SetDpadUp(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetTriggerL(UInt32 UserIndex, Byte Value);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDpadRight")]
-        private static extern VJRESULT _SetDpadRight(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetTriggerR(UInt32 UserIndex, Byte Value);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDpadDown")]
-        private static extern VJRESULT _SetDpadDown(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetAxisLx(UInt32 UserIndex, Int16 Value);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDpadLeft")]
-        private static extern VJRESULT _SetDpadLeft(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetAxisLy(UInt32 UserIndex, Int16 Value);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDpadOff")]
-        private static extern VJRESULT _SetDpadOff(UInt32 UserIndex);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetAxisRx(UInt32 UserIndex, Int16 Value);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetAxisRy(UInt32 UserIndex, Int16 Value);
+#endif // SPECIFICBUTTONS
+
+        // DPAD Functions
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDpad(UInt32 UserIndex, Byte Value);
+
+#if SPECIFICBUTTONS
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDpadUp(UInt32 UserIndex);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDpadRight(UInt32 UserIndex);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDpadDown(UInt32 UserIndex);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDpadLeft(UInt32 UserIndex);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDpadOff(UInt32 UserIndex);
 
 #endif // SPECIFICBUTTONS
 
 
         // Feedback Polling: Assigned Led number / Vibration values
-        [DllImport("vGenInterface.dll", EntryPoint = "GetLedNumber")]
-        private static extern VJRESULT _GetLedNumber(UInt32 UserIndex, ref Byte pLed);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetLedNumber(UInt32 UserIndex, ref Byte pLed);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetVibration")]
-        private static extern VJRESULT _GetVibration(UInt32 UserIndex, ref XINPUT_VIBRATION pVib);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetVibration(UInt32 UserIndex, ref XINPUT_VIBRATION pVib);
 
         #endregion vXbox API
 
+        #region ViGEm Bus API
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isVGEBusExist();
+
+        [DllImport("vGenInterface.dll")]
+        public static extern UInt32 GetVGEVersion();
+
+        #endregion  ViGEm Bus API
+
         #region Common API
 
-        [DllImport("vGenInterface.dll", EntryPoint = "AcquireDev")]
-        private static extern VJRESULT _AcquireDev(UInt32 DevId, VGEN_DEV_TYPE dType, ref Int32 hDev);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT DeInit();
 
-        [DllImport("vGenInterface.dll", EntryPoint = "RelinquishDev")]
-        private static extern VJRESULT _RelinquishDev(Int32 hDev);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT AcquireDev(UInt32 DevId, VGEN_DEV_TYPE dType, ref Int32 hDev);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetDevType")]
-        private static extern VJRESULT _GetDevType(Int32 hDev, ref VGEN_DEV_TYPE dType);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT RelinquishDev(Int32 hDev);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetDevNumber")]
-        private static extern VJRESULT _GetDevNumber(Int32 hDev, ref UInt32 dNumber);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJDSTATUS GetDevStatus(Int32 hDev);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetDevId")]
-        private static extern VJRESULT _GetDevId(Int32 hDev, ref UInt32 dID);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJDSTATUS GetDevTypeStatus(VGEN_DEV_TYPE dType, UInt32 DevId);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "isDevOwned")]
-        private static extern VJRESULT _isDevOwned(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Owned);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetDevType(Int32 hDev, ref VGEN_DEV_TYPE dType);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "isDevExist")]
-        private static extern VJRESULT _isDevExist(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Exist);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetDevNumber(Int32 hDev, ref UInt32 dNumber);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "isDevFree")]
-        private static extern VJRESULT _isDevFree(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Free);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetDevId(Int32 hDev, ref UInt32 dID);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetDevHandle")]
-        private static extern VJRESULT _GetDevHandle(UInt32 DevId, VGEN_DEV_TYPE dType, ref Int32 hDev);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isDevOwned(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Owned);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "isAxisExist")]
-        private static extern VJRESULT _isAxisExist(Int32 hDev, HID_USAGES Axis, ref Boolean Exist);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isDevExist(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Exist);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetDevButtonN")]
-        private static extern VJRESULT _GetDevButtonN(Int32 hDev, ref UInt32 nBtn);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isDevFree(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Free);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "GetDevHatN")]
-        private static extern VJRESULT _GetDevHatN(Int32 hDev, ref UInt32 nHat);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetDevHandle(UInt32 DevId, VGEN_DEV_TYPE dType, ref Int32 hDev);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDevButton")]
-        private static extern VJRESULT _SetDevButton(Int32 hDev, UInt32 Button, Boolean Press);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT isAxisExist(Int32 hDev, HID_USAGES Axis, ref Boolean Exist);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDevAxis")]
-        private static extern VJRESULT _SetDevAxis(Int32 hDev, HID_USAGES Axis, float Value);
+        [DllImport("vGenInterface.dll")]
+        public static extern bool GetDevAxisRange(Int32 hDev, HID_USAGES Axis, ref Int32 Min, ref Int32 Max);
 
-        [DllImport("vGenInterface.dll", EntryPoint = "SetDevPov")]
-        private static extern VJRESULT _SetDevPov(Int32 hDev, UInt32 nPov, float Value);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetDevButtonN(Int32 hDev, ref UInt16 nBtn);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetDevHatN(Int32 hDev, VGEN_POV_TYPE povType, ref UInt16 nHat);
+
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDevButton(Int32 hDev, UInt32 Button, Boolean Press);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDevAxis(Int32 hDev, HID_USAGES Axis, long Value);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDevAxisPct(Int32 hDev, HID_USAGES Axis, float Value);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDevDiscPov(Int32 hDev, byte nPov, DPOV_DIRECTION Value);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDevContPov(Int32 hDev, byte nPov, UInt32 Value);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDevPov(Int32 hDev, byte nPov, UInt32 Value);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT SetDevPovPct(Int32 hDev, byte nPov, float Value);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT ResetDevPositions(Int32 hDev);
+
 
         [DllImport("vGenInterface.dll", EntryPoint = "GetPosition")]
-        private static extern VJRESULT _GetPosition(UInt32 rID, ref JoystickState pPosition);
+        public static extern VJRESULT GetPosition(Int32 hDev, ref JoystickState pPosition);
 
         [DllImport("vGenInterface.dll", EntryPoint = "GetPosition")]
-        private static extern VJRESULT _GetPosition(UInt32 rID, ref GamepadState pPosition);
+        public static extern VJRESULT GetPosition(Int32 hDev, ref GamepadState pPosition);
+
+        [DllImport("vGenInterface.dll", EntryPoint = "GetPosition")]
+        public static extern VJRESULT GetPosition(Int32 hDev, ref DualShock4State pPosition);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern bool IsDevTypeSupported(VGEN_DEV_TYPE dType);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern uint GetDriverVersion(VGEN_DEV_TYPE dType);
+
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetDevInfo(Int32 hDev, ref DeviceInfo DevInfo);
+
         #endregion Common API
 
         #region XInput helpers
-        [DllImport("vGenInterface.dll", EntryPoint = "GetXInputState")]
-        private static extern VJRESULT _GetXInputState(UInt32 rID, ref XInputState pState);
+        [DllImport("vGenInterface.dll")]
+        public static extern VJRESULT GetXInputState(UInt32 rID, ref XInputState pState);
         #endregion XInput helpers
 
         /***************************************************/
@@ -826,52 +971,14 @@ namespace vGenInterfaceWrap
         /***************************************************/
 
         #region Backward compatibility API (vJoy)
+
         /////	General driver data
-        public short GetvJoyVersion() { return _GetvJoyVersion(); }
-        public bool vJoyEnabled() { return _vJoyEnabled(); }
-        public string GetvJoyProductString() { return Marshal.PtrToStringAuto(_GetvJoyProductString()); }
-        public string GetvJoyManufacturerString() { return Marshal.PtrToStringAuto(_GetvJoyManufacturerString()); }
-        public string GetvJoySerialNumberString() { return Marshal.PtrToStringAuto(_GetvJoySerialNumberString()); }
-        public bool DriverMatch(ref UInt32 DllVer, ref UInt32 DrvVer) { return _DriverMatch(ref DllVer, ref DrvVer); }
-
-        /////	vJoy Device properties
-        public int GetVJDButtonNumber(uint rID) { return _GetVJDButtonNumber(rID); }
-        public int GetVJDDiscPovNumber(uint rID) { return _GetVJDDiscPovNumber(rID); }
-        public int GetVJDContPovNumber(uint rID) { return _GetVJDContPovNumber(rID); }
-        public bool GetVJDAxisExist(UInt32 rID, HID_USAGES Axis)
-        {
-            UInt32 res = _GetVJDAxisExist(rID, Axis);
-            if (res == 1)
-                return true;
-            else
-                return false;
-        }
-        public bool GetVJDAxisMax(UInt32 rID, HID_USAGES Axis, ref long Max) { return _GetVJDAxisMax(rID, Axis, ref Max); }
-        public bool GetVJDAxisMin(UInt32 rID, HID_USAGES Axis, ref long Min) { return _GetVJDAxisMin(rID, Axis, ref Min); }
-        public bool GetVJDAxisRange(UInt32 rID, HID_USAGES Axis, ref Int32 Min, ref Int32 Max) { return _GetVJDAxisRange(rID, Axis, ref Min, ref Max); }
-        public bool isVJDExists(UInt32 rID) { return _isVJDExists(rID); }
-        public int  GetOwnerPid(UInt32 rID) { return _GetOwnerPid(rID); }
-
-        /////	Write access to vJoy Device - Basic
-        public bool AcquireVJD(UInt32 rID) { return _AcquireVJD(rID); }
-        public void RelinquishVJD(uint rID) {  _RelinquishVJD(rID); }
-        public bool UpdateVJD(UInt32 rID, ref JoystickState pData) {return _UpdateVJD( rID, ref pData);}
-        public VJDSTATUS GetVJDStatus(UInt32 rID) { return (VJDSTATUS)_GetVJDStatus(rID); }
-
-        //// Reset functions
-        public bool ResetVJD(UInt32 rID){return _ResetVJD(rID);}
-        public bool ResetAll(){return _ResetAll();}
-        public bool ResetButtons(UInt32 rID){return _ResetButtons(rID);}
-        public bool ResetPovs(UInt32 rID) { return _ResetPovs(rID); }
-
-        ////// Write data
-        public bool SetAxis(Int32 Value, UInt32 rID, HID_USAGES Axis) { return _SetAxis(Value, rID, Axis); }
-        public bool SetBtn(bool Value, UInt32 rID, uint nBtn) { return _SetBtn( Value, rID, (Byte)nBtn); }
-        public bool SetDiscPov(Int32 Value, UInt32 rID, uint nPov) { return _SetDiscPov(Value, rID, nPov); }
-        public bool SetContPov(Int32 Value, UInt32 rID, uint nPov) { return _SetContPov(Value, rID, nPov); }
+        public static string GetvJoyProductString() { return Marshal.PtrToStringAuto(_GetvJoyProductString()); }
+        public static string GetvJoyManufacturerString() { return Marshal.PtrToStringAuto(_GetvJoyManufacturerString()); }
+        public static string GetvJoySerialNumberString() { return Marshal.PtrToStringAuto(_GetvJoySerialNumberString()); }
 
         // Register CB function that takes a C# object as userdata
-        public void RegisterRemovalCB(RemovalCbFunc cb, object data)
+        public static void RegisterRemovalCB(RemovalCbFunc cb, object data)
         {
             // Free existing GCHandle (if exists)
             if (hRemUserData.IsAllocated && hRemUserData.Target != null)
@@ -888,7 +995,7 @@ namespace vGenInterfaceWrap
         }
 
         // Register CB function that takes a pointer as userdata
-        public void RegisterRemovalCB(WrapRemovalCbFunc cb, IntPtr data)
+        public static void RegisterRemovalCB(WrapRemovalCbFunc cb, IntPtr data)
         {
             wrf = new WrapRemovalCbFunc(cb);
             _RegisterRemovalCB(wrf, data);
@@ -897,6 +1004,7 @@ namespace vGenInterfaceWrap
 
         /////////////////////////////////////////////////////////////////////////////////////////////
         //// Force Feedback (FFB)
+        #region Force Feedback (FFB)
 
         // Register CB function that takes a C# object as userdata
         public void FfbRegisterGenCB(FfbCbFunc cb, object data)
@@ -922,10 +1030,6 @@ namespace vGenInterfaceWrap
             _FfbRegisterGenCB(wf, data);
         }
 
-        [Obsolete("you can remove the function from your code")]
-        public bool FfbStart(UInt32 rID) { return _FfbStart(rID); }
-        [Obsolete("you can remove the function from your code")]
-        public bool FfbStop(UInt32 rID) { return _FfbStop(rID); }
         public bool IsDeviceFfb(UInt32 rID) { return _IsDeviceFfb(rID); }
         public bool IsDeviceFfbEffect(UInt32 rID, UInt32 Effect) { return _IsDeviceFfbEffect(rID, Effect); }
         public UInt32 Ffb_h_DeviceID(IntPtr  Packet, ref int DeviceID) {return _Ffb_h_DeviceID(Packet, ref DeviceID);}
@@ -943,8 +1047,6 @@ namespace vGenInterfaceWrap
             return res;
         }
         public UInt32 Ffb_h_EBI(IntPtr Packet, ref Int32 Index) { return _Ffb_h_EBI( Packet, ref  Index);}
-        [Obsolete("use Ffb_h_Eff_Report instead")]
-        public UInt32 Ffb_h_Eff_Const(IntPtr Packet, ref FFB_EFF_CONST Effect) { return _Ffb_h_Eff_Const(Packet, ref  Effect); }
         public UInt32 Ffb_h_Eff_Report(IntPtr Packet, ref FFB_EFF_REPORT Effect) { return _Ffb_h_Eff_Report(Packet, ref  Effect); }
         public UInt32 Ffb_h_DevCtrl(IntPtr Packet, ref FFB_CTRL Control) { return _Ffb_h_DevCtrl(Packet, ref  Control); }
         public UInt32 Ffb_h_EffOp(IntPtr Packet, ref FFB_EFF_OP Operation) { return _Ffb_h_EffOp( Packet, ref  Operation);}
@@ -955,91 +1057,9 @@ namespace vGenInterfaceWrap
         public UInt32 Ffb_h_EffNew(IntPtr Packet, ref FFBEType Effect) { return _Ffb_h_EffNew( Packet, ref  Effect); }
         public UInt32 Ffb_h_Eff_Ramp(IntPtr Packet, ref FFB_EFF_RAMP RampEffect) { return _Ffb_h_Eff_Ramp( Packet, ref  RampEffect);}
         public UInt32 Ffb_h_Eff_Constant(IntPtr Packet, ref FFB_EFF_CONSTANT ConstantEffect) { return _Ffb_h_Eff_Constant(Packet, ref  ConstantEffect); }
+
+        #endregion Force Feedback (FFB)
         #endregion Backward compatibility API (vJoy)
 
-        #region vXbox API
-        public VJRESULT isVBusExist() { return _isVBusExist(); }
-        public UInt32   GetVBusVersion() { return _GetVBusVersion(); }
-        public VJRESULT GetNumEmptyBusSlots(ref Byte nSlots) { return _GetNumEmptyBusSlots(ref nSlots); }
-        public VJRESULT isControllerPluggedIn(UInt32 UserIndex, ref bool Exist) { return _isControllerPluggedIn(UserIndex, ref  Exist); }
-        public VJRESULT isControllerOwned(UInt32 UserIndex, ref Boolean Exist) { return _isControllerOwned(UserIndex, ref Exist); }
-        public VJRESULT GetVBAxisRange(UInt32 UserIndex, HID_USAGES Axis, ref Int32 Min, ref Int32 Max) { return _GetVXAxisRange(UserIndex, Axis, ref Min, ref Max); }
-        public VJRESULT PlugIn(UInt32 UserIndex) { return _PlugIn(UserIndex); }
-        public VJRESULT PlugInNext(ref UInt32 UserIndex) { return _PlugInNext(ref UserIndex); }
-        public VJRESULT UnPlug(UInt32 UserIndex) { return _UnPlug(UserIndex); }
-        public VJRESULT UnPlugForce(UInt32 UserIndex) { return _UnPlugForce(UserIndex); }
-        public VJRESULT ResetController(UInt32 UserIndex) { return _ResetController(UserIndex); }
-        public VJRESULT ResetAllControllers() { return _ResetAllControllers(); }
-        public VJRESULT SetButton(UInt32 UserIndex, UInt16 Button, Boolean Press) { return _SetButton(UserIndex, Button, Press); }
-
-#if SPECIFICRESET
-        public UInt32 ResetControllerBtns(UInt32 UserIndex) { return _ResetControllerBtns(UserIndex); }
-
-        public UInt32 ResetControllerDPad(UInt32 UserIndex) { return _ResetControllerDPad(UserIndex); }
-#endif // SPECIFICRESET
-
-#if SPECIFICBUTTONS
-        public VJRESULT SetBtnA(UInt32 UserIndex, Boolean Press) { return _SetBtnA(UserIndex, Press); }
-        public VJRESULT SetBtnB(UInt32 UserIndex, Boolean Press) { return _SetBtnB(UserIndex, Press); }
-        public VJRESULT SetBtnX(UInt32 UserIndex, Boolean Press) { return _SetBtnX(UserIndex, Press); }
-        public VJRESULT SetBtnY(UInt32 UserIndex, Boolean Press) { return _SetBtnY(UserIndex, Press); }
-        public VJRESULT SetBtnLT(UInt32 UserIndex, Boolean Press) { return _SetBtnLT(UserIndex, Press); }
-        public VJRESULT SetBtnRT(UInt32 UserIndex, Boolean Press) { return _SetBtnRT(UserIndex, Press); }
-        public VJRESULT SetBtnLB(UInt32 UserIndex, Boolean Press) { return _SetBtnLB(UserIndex, Press); }
-        public VJRESULT SetBtnRB(UInt32 UserIndex, Boolean Press) { return _SetBtnRB(UserIndex, Press); }
-        public VJRESULT SetBtnStart(UInt32 UserIndex, Boolean Press) { return _SetBtnStart(UserIndex, Press); }
-        public VJRESULT SetBtnBack(UInt32 UserIndex, Boolean Press) { return _SetBtnBack(UserIndex, Press); }
-#endif
-        // Trigger/Axis functions: Set value in the range
-        public VJRESULT SetGamepadAxis(UInt32 UserIndex, HID_USAGES Axis, short Value) { return _SetGamepadAxis(UserIndex, Axis, Value); }
-        public VJRESULT SetTriggerL(UInt32 UserIndex, Byte Value) { return _SetTriggerL(UserIndex, Value); }
-        public VJRESULT SetTriggerR(UInt32 UserIndex, Byte Value) { return _SetTriggerR(UserIndex, Value); }
-        public VJRESULT SetAxisLx(UInt32 UserIndex, Int16 Value) { return _SetAxisLx(UserIndex, Value); }
-        public VJRESULT SetAxisLy(UInt32 UserIndex, Int16 Value) { return _SetAxisLy(UserIndex, Value); }
-        public VJRESULT SetAxisRx(UInt32 UserIndex, Int16 Value) { return _SetAxisRx(UserIndex, Value); }
-        public VJRESULT SetAxisRy(UInt32 UserIndex, Int16 Value) { return _SetAxisRy(UserIndex, Value); }
-        public VJRESULT SetDpad(UInt32 UserIndex, Byte Value) { return _SetDpad(UserIndex, Value); }
-
-#if SPECIFICBUTTONS
-        public VJRESULT SetDpadUp(UInt32 UserIndex) { return _SetDpadUp(UserIndex); }
-        public VJRESULT SetDpadRight(UInt32 UserIndex) { return _SetDpadRight(UserIndex); }
-        public VJRESULT SetDpadDown(UInt32 UserIndex) { return _SetDpadDown(UserIndex); }
-        public VJRESULT SetDpadLeft(UInt32 UserIndex) { return _SetDpadLeft(UserIndex); }
-        public VJRESULT SetDpadOff(UInt32 UserIndex) { return _SetDpadOff(UserIndex); }
-#endif // SPECIFICBUTTONS
-
-        // Feedback Polling: Assigned Led number / Vibration values
-        public VJRESULT GetLedNumber(UInt32 UserIndex, ref Byte pLed) { return _GetLedNumber(UserIndex, ref pLed); }
-        public VJRESULT GetVibration(UInt32 UserIndex, ref XINPUT_VIBRATION pVib) { return _GetVibration( UserIndex, ref  pVib); }
-
-        #endregion vXbox API
-
-        #region Common API
-
-        public VJRESULT AcquireDev(UInt32 DevId, VGEN_DEV_TYPE dType, ref Int32 hDev) { return _AcquireDev(DevId, dType, ref hDev); }
-        public VJRESULT RelinquishDev(Int32 hDev) { return _RelinquishDev( hDev); }
-        public VJRESULT GetDevType(Int32 hDev, ref VGEN_DEV_TYPE dType) { return _GetDevType( hDev, ref  dType); }
-        public VJRESULT GetDevNumber(Int32 hDev, ref UInt32 dNumber) { return _GetDevNumber( hDev, ref  dNumber); }
-        public VJRESULT GetDevId(Int32 hDev, ref UInt32 dID) { return _GetDevId(hDev, ref dID); }
-        public VJRESULT isDevOwned(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Owned) { return _isDevOwned( DevId,  dType, ref  Owned); }
-        public VJRESULT isDevExist(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Exist) { return _isDevExist(DevId, dType, ref Exist); }
-        public VJRESULT isDevFree(UInt32 DevId, VGEN_DEV_TYPE dType, ref Boolean Free) { return _isDevFree(DevId, dType, ref Free); }
-        public VJRESULT GetDevHandle(UInt32 DevId, VGEN_DEV_TYPE dType, ref Int32 hDev) { return _GetDevHandle( DevId,  dType, ref  hDev); }
-        public VJRESULT isAxisExist(Int32 hDev, HID_USAGES Axis, ref Boolean Exist) { return _isAxisExist(hDev, Axis, ref Exist); }
-        public VJRESULT GetDevButtonN(Int32 hDev, ref UInt32 nBtn) { return _GetDevButtonN(hDev, ref nBtn); }
-        public VJRESULT GetDevHatN(Int32 hDev, ref UInt32 nHat) { return _GetDevHatN(hDev, ref nHat); }
-        public VJRESULT SetDevButton(Int32 hDev, UInt32 Button, Boolean Press) { return _SetDevButton(hDev, Button, Press); }
-        public VJRESULT SetDevAxis(Int32 hDev, HID_USAGES Axis, float Value) { return _SetDevAxis(hDev, Axis, Value); }
-        public VJRESULT SetDevPov(Int32 hDev, UInt32 nPov, float Value) { return _SetDevPov(hDev, nPov, Value); }
-        public VJRESULT GetPosition(UInt32 rID, ref JoystickState pPosition) { return _GetPosition(rID, ref pPosition); }
-        public VJRESULT GetPosition(UInt32 rID, ref GamepadState pPosition) { return _GetPosition(rID, ref pPosition); }
-
-        #endregion Common API
-
-        #region XInput helpers
-
-        public static VJRESULT GetXInputState(UInt32 ledN, ref XInputState pState) { return _GetXInputState(ledN, ref pState); }
-
-        #endregion XInput helpers
     }
 }
