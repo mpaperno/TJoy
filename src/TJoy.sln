@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "vGenInterfaceWrap", "vGen\v
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComTest", "vGen\vGenWrap\ComTest\ComTest.csproj", "{7ABE79B7-8506-4DA4-B511-CEE751496CE4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ViGEmClient", "ViGEmClient\src\ViGEmClient.vcxproj", "{7DB06674-1F4F-464B-8E1C-172E9587F9DC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -64,6 +66,18 @@ Global
 		{7ABE79B7-8506-4DA4-B511-CEE751496CE4}.Release|Any CPU.ActiveCfg = Release|x64
 		{7ABE79B7-8506-4DA4-B511-CEE751496CE4}.Release|x64.ActiveCfg = Release|x64
 		{7ABE79B7-8506-4DA4-B511-CEE751496CE4}.Release|x86.ActiveCfg = Release|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Debug|Any CPU.ActiveCfg = Debug_LIB|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Debug|Any CPU.Build.0 = Debug_LIB|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Debug|x64.ActiveCfg = Debug_LIB|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Debug|x64.Build.0 = Debug_LIB|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Debug|x86.ActiveCfg = Debug_DLL|Win32
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Debug|x86.Build.0 = Debug_DLL|Win32
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Release|Any CPU.ActiveCfg = Release_DLL|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Release|Any CPU.Build.0 = Release_DLL|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Release|x64.ActiveCfg = Release_LIB|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Release|x64.Build.0 = Release_LIB|x64
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Release|x86.ActiveCfg = Release_LIB|Win32
+		{7DB06674-1F4F-464B-8E1C-172E9587F9DC}.Release|x86.Build.0 = Release_LIB|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
