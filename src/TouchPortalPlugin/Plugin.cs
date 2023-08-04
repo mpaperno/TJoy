@@ -362,6 +362,12 @@ namespace TJoy.TouchPortalPlugin
       device.ResetDevice();
       UpdateDeviceConnectors(vjid);
       StartStatusDataTask();  // if needed
+
+      Task.Run(async delegate {
+        await Task.Delay(1500);
+        UpdateTPState(C.IDSTR_STATE_LAST_CONNECT, "");
+      });
+
       return device;
     }
 
@@ -375,6 +381,12 @@ namespace TJoy.TouchPortalPlugin
       UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, $"{oldDev.Name}");
       if (oldDev.IsXBox)
         UpdateTPState($"{C.IDSTR_GAMEPAD}.{oldDev.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", "0");
+
+      Task.Run(async delegate {
+        await Task.Delay(1500);
+        UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, "");
+      });
+
     }
 
     private void RemoveAllDevices(DeviceType devType = DeviceType.None)
