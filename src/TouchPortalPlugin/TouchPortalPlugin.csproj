@@ -40,7 +40,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\build\$(Platform)-$(Configuration)\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;VJOY_API_2_1;USE_VGEN</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;VJOY_API_2_1;USE_VGEN;USE_VIGEM</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
@@ -52,7 +52,7 @@
     <DebugSymbols>false</DebugSymbols>
     <Optimize>true</Optimize>
     <OutputPath>..\..\build\$(Platform)-$(Configuration)\</OutputPath>
-    <DefineConstants>TRACE;VJOY_API_2_1;USE_VGEN</DefineConstants>
+    <DefineConstants>TRACE;VJOY_API_2_1;USE_VGEN;USE_VIGEM</DefineConstants>
     <ErrorReport>none</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
@@ -90,12 +90,14 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="System.IO.FileSystem.Primitives" Version="4.3.0" />
     <PackageReference Include="System.Runtime.Handles" Version="4.3.0" />
-    <PackageReference Include="TouchPortal-CS-API" Version="1.44.2" />
+    <PackageReference Include="TouchPortal-CS-API" Version="1.45.1" />
   </ItemGroup>
 
+<!--
   <ItemGroup Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*; *)*USE_VIGEM(;.*)*$'))">
     <PackageReference Include="Nefarius.ViGEm.Client" Version="1.17.178" />
   </ItemGroup>
+-->
 
   <Choose>
     <When Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*; *)*USE_VGEN(;.*)*$'))">
