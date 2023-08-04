@@ -1,6 +1,6 @@
 {
 	"sdk": 6,
-	"version": 1000001,
+	"version": 1010000,
 	"name": "TJoy Touch Portal Plugin",
 	"id": "us.wdg.max.tpp.tjoy",
 	"configuration": {
@@ -11,10 +11,8 @@
 	"settings": [
 		{
 			"name": "Default Device (0 to disable)",
-			"type": "number",
+			"type": "text",
 			"default": "0",
-			"minValue": 0,
-			"maxValue": 16,
 			"readOnly": false
 		},
 		{
@@ -482,7 +480,9 @@
 					"valueStateId": "us.wdg.max.tpp.tjoy.state.lastConnectedDevice",
 					"valueChoices": [
 						"vJoy 1", "vJoy 2", "vJoy 3", "vJoy 4", "vJoy 5", "vJoy 5", "vJoy 7", "vJoy 8", "vJoy 9", "vJoy 10", "vJoy 11", "vJoy 12", "vJoy 13", "vJoy 14", "vJoy 15", "vJoy 16",
-						"vXBox 1", "vXBox 2", "vXBox 3", "vXBox 4"
+						"vXBox 1", "vXBox 2", "vXBox 3", "vXBox 4",
+						"vgeXBox 1", "vgeXBox 2", "vgeXBox 3", "vgeXBox 4",
+						"vgeDS4 1", "vgeDS4 2", "vgeDS4 3", "vgeDS4 4"
 					]
 				},
 				{
@@ -494,7 +494,9 @@
 					"valueStateId": "us.wdg.max.tpp.tjoy.state.lastDisconnectedDevice",
 					"valueChoices": [
 						"vJoy 1", "vJoy 2", "vJoy 3", "vJoy 4", "vJoy 5", "vJoy 5", "vJoy 7", "vJoy 8", "vJoy 9", "vJoy 10", "vJoy 11", "vJoy 12", "vJoy 13", "vJoy 14", "vJoy 15", "vJoy 16",
-						"vXBox 1", "vXBox 2", "vXBox 3", "vXBox 4"
+						"vXBox 1", "vXBox 2", "vXBox 3", "vXBox 4",
+						"vgeXBox 1", "vgeXBox 2", "vgeXBox 3", "vgeXBox 4",
+						"vgeDS4 1", "vgeDS4 2", "vgeDS4 3", "vgeDS4 4"
 					]
 				}
 			]
