@@ -5,7 +5,7 @@ Param(
   [string]$Configuration = "Release",
   [string]$Platform = "x64",
   [String]$VersionSuffix = "",
-  [switch]$Clean = $false,
+  [switch]$Clean = $true,
   [switch]$BuildAgent = $false
 )
 
@@ -29,7 +29,7 @@ if(-Not ([string]::IsNullOrEmpty($VersionSuffix))) {
 }
 
 Write-Information "Publishing '$ProjectName' component to '$PluginFilesPath'...`n" -InformationAction Continue
-dotnet publish "$ProjectName" --output "$BinFilesPath" --configuration $Configuration -p:Platform=$Platform $VersionSuffixCommand $VersionSuffix -r "win-$Platform"
+dotnet publish "$ProjectName" --output "$BinFilesPath" --configuration $Configuration -p:Platform=$Platform $VersionSuffixCommand $VersionSuffix -r "win-$Platform" --self-contained
 
 # Copy Entry.tp, Readme, Documentation, CHANGELOG to publish
 copy "$ProjectName/entry.tp" "$PluginFilesPath"
