@@ -73,6 +73,7 @@ namespace TJoy.TouchPortalPlugin
     private readonly ConcurrentDictionary<string, ConnectorTrackingData> _connectorsDict = new();
     private readonly ConcurrentDictionary<string, string> _connectorsLongToShortMap = new();
     private readonly Dictionary<string, int> _joystickStatesDict = new();
+    private readonly List<uint> _tempRemovedVJoyDevices = new();  // used to re-connect vJoy devices after a bus/driver reset
     private readonly ILoggerFactory _loggerFactory;
 
     // automagic contructor arguments... woot!?
@@ -312,19 +313,19 @@ namespace TJoy.TouchPortalPlugin
 
     private void SetDefaultDevice(uint vjid)
     {
-      if (_settings.DefaultDeviceId == vjid)
+      if (DefaultDevId == vjid)
         return;
 
       if (vjid != 0 && !CheckDeviceId(vjid))
         vjid = 0;
 
       // Relinquish old device, if any.
-      if (_settings.DefaultDeviceId > 0)
-        RemoveDevice(_settings.DefaultDeviceId);
+      //if (DefaultDevId > 0)
+      //  RemoveDevice(DefaultDevId);
 
       _settings.DefaultDeviceId = vjid;
-      if (vjid != 0)
-        AddDevice(vjid);
+      //if (vjid != 0)
+      //  AddDevice(vjid);
     }
 
     private JoyDevice AddDevice(uint vjid)
@@ -380,9 +381,14 @@ namespace TJoy.TouchPortalPlugin
 
     private void RemoveAllDevices(DeviceType devType = DeviceType.None)
     {
+      if (devType == DeviceType.VJoy)
+        _tempRemovedVJoyDevices.Clear();
       foreach (var device in _devices.Values) {
-        if (devType == DeviceType.None || devType == device.DeviceType)
+        if (devType == DeviceType.None || devType == device.DeviceType) {
+          if (devType == DeviceType.VJoy)
+            _tempRemovedVJoyDevices.Add(device.Id);
           RemoveDevice(device.Id);
+        }
       }
     }
 
@@ -444,9 +450,11 @@ namespace TJoy.TouchPortalPlugin
       }
       else {
         DetectVJoyDevices();
-        if (Util.DeviceIdToType(DefaultDevId) == DeviceType.VJoy && _settings.AvailableVJoyDevs.Contains(DefaultDevId))
-          AddDevice(DefaultDevId);
         UpdateDeviceChoices();
+        // reconnect any devices which were already connected before the reload.
+        foreach (uint devId in _tempRemovedVJoyDevices)
+          if (_settings.AvailableVJoyDevs.Contains(devId))
+            AddDevice(devId);
       }
     }
 
