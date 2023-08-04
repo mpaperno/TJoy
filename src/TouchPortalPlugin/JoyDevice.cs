@@ -44,6 +44,7 @@ namespace TJoy
     public DeviceType DeviceType     => _vjdInfo.deviceType;
     public uint Id                   => _vjdInfo.id;
     public uint Index                => _vjdInfo.index;
+    public int Handle                => _vjdInfo.handle;
     public uint LedNumber            => _vjdInfo.ledNumber;
     public long LastStateUpdate      => _vjdInfo.lastStateUpdate;
     public uint DriverVersion        => _vjdInfo.driverVersion;
@@ -60,16 +61,18 @@ namespace TJoy
     public bool IsVbDS4   => DeviceType == DeviceType.VBDS4;
     public bool IsGamepad => DeviceType != DeviceType.VJoy;
     public bool IsVBus    => DeviceType == DeviceType.VBXBox || DeviceType == DeviceType.VBDS4;
+    public bool IsXBox    => DeviceType == DeviceType.VXBox || DeviceType == DeviceType.VBXBox;
 
     public bool IsConnected => CheckConnected();
-    public bool DeviceTypeExists => IsVJoy ? _vjoy.vJoyEnabled() : _vjoy.isVBusExist() == VJRESULT.SUCCESS;
+    public bool DeviceTypeExists => IsVJoy ? vJoy.IsDevTypeSupported(VGEN_DEV_TYPE.vJoy) :
+                                    IsVXBox ? vJoy.IsDevTypeSupported(VGEN_DEV_TYPE.vXbox) :
+                                    IsVBus && vJoy.IsDevTypeSupported(VGEN_DEV_TYPE.vgeXbox);
     public bool SupportsStateReport => IsGamepad || DriverVersion <= C.VJOY_API_VERSION;
 
     public string Name { get; set; }  // by default it's TypeName + " " + Index
 
     //////////////////////////////////
 
-    private readonly vJoy _vjoy;
     private readonly ILogger _logger;
     private VJDeviceInfo _vjdInfo = new();  // info about current device
     private readonly object _devInfoStructLock = new();
@@ -84,7 +87,6 @@ namespace TJoy
       if (_vjdInfo.deviceType == DeviceType.None)
         throw new ArgumentException("Unknown DeviceType either from deviceId or deviceType argument.", nameof(deviceType));
 
-      _vjoy = new();
       _vjdInfo.id = deviceId;
       _vjdInfo.index = deviceId - (uint)_vjdInfo.deviceType;
       _vjdInfo.typeName = Util.DeviceTypeName(_vjdInfo.deviceType);
@@ -94,7 +96,7 @@ namespace TJoy
     }
 
     public bool CheckConnected() =>
-        IsDeviceIdValid(Id) && _vjoy?.GetVJDStatus(Id) == VJDSTATUS.VJD_STAT_OWN;
+        Handle > 0 && vJoy.GetDevStatus(Handle) == VJDSTATUS.VJD_STAT_OWN;
 
     public bool IsDeviceIdValid(uint devId) =>
         devId > 0 && devId - (uint)DeviceType <= Util.MaxDevices(DeviceType);
@@ -118,7 +120,7 @@ namespace TJoy
 
     public bool CheckStatus()
     {
-      VJDSTATUS status = _vjoy.GetVJDStatus(Id);
+      VJDSTATUS status = vJoy.GetDevTypeStatus((VGEN_DEV_TYPE)DeviceType, Index);
       switch (status) {
         case VJDSTATUS.VJD_STAT_OWN:
           _logger.LogInformation("Device {name} is already owned by this feeder", Name);
@@ -154,21 +156,15 @@ namespace TJoy
 
       // Acquire the target
       if (!CheckConnected()) {
-        int hDev = 0;
-        var res = _vjoy.AcquireDev(_vjdInfo.index, IsVJoy ? VGEN_DEV_TYPE.vJoy : VGEN_DEV_TYPE.vXbox, ref hDev);
-        if (res == VJRESULT.UNSUCCESSFUL) {
-          // workaround issue with attempting to re-connect right after disconnect will first return wrong result.
-          System.Threading.Thread.Yield();
-          if (CheckConnected())
-            res = VJRESULT.SUCCESS;
-        }
+        var res = vJoy.AcquireDev(_vjdInfo.index, (VGEN_DEV_TYPE)DeviceType, ref _vjdInfo.handle);
+
         if (res != VJRESULT.SUCCESS && res != VJRESULT.DEVICE_ALREADY_ATTACHED) {
-          _logger.LogWarning($"Connect() failed with error: {res}.");
+          _logger.LogWarning("Connect() failed with error: {res:X}", res);
           return false;
         }
       }
 
-      _logger.LogDebug($"Acquired device {Name}.");
+      _logger.LogDebug("Acquired device {name}.", Name);
       LoadDeviceInfo();
       return true;
     }
@@ -176,49 +172,66 @@ namespace TJoy
     public void RelinquishDevice()
     {
       if (CheckConnected()) {
-        _vjoy.RelinquishVJD(Id);
-        _logger.LogDebug($"Relinquished device {Name}.");
+        var res = vJoy.RelinquishDev(Handle);
+        _vjdInfo.handle = 0;
+        if (res == VJRESULT.SUCCESS)
+          _logger.LogDebug("Relinquished device {name}.", Name);
+        else
+          _logger.LogWarning("Relinquish device {name} returned error: {res:X}", Name, res);
       }
     }
 
     private void LoadDeviceInfo()
     {
       // Check and log device capabilities
-      if (IsVJoy) {
-        _vjdInfo.driverVersion = (uint)_vjoy.GetvJoyVersion();
-        _logger.LogDebug($"vJoy driver version {_vjdInfo.driverVersion:X}.");
-      }
-      else if (IsVXBox) {
-        _vjdInfo.driverVersion = _vjoy.GetVBusVersion();
-        _logger.LogDebug($"vXBus driver version {_vjdInfo.driverVersion:X}.");
-        if (_vjoy.GetLedNumber(_vjdInfo.index, ref _vjdInfo.ledNumber) is var res && res != VJRESULT.SUCCESS) {
-          _logger.LogWarning($"GetLedNumber() failed with error: {res}.");
-          _vjdInfo.ledNumber = 0;
+      _vjdInfo.driverVersion = vJoy.GetDriverVersion((VGEN_DEV_TYPE)DeviceType);
+      _logger.LogDebug("{name} device driver version {v:X}.", TypeName, _vjdInfo.driverVersion);
+
+      if (IsXBox) {
+        //vJoy.DeviceInfo devInfo = new();
+        //if (vJoy.GetDevInfo(Handle, ref devInfo) is var res && res == VJRESULT.SUCCESS) {
+        //  _vjdInfo.ledNumber = devInfo.LedNumber;
+        //  _vjdInfo.colorBar = devInfo.ColorBar;
+        //  _logger.LogDebug("Got DeviceInfo for {device}: VID: {vId:X}; PID: {pId:X}; Serial: {serial}; LED: {led}; Color: {color:X};",
+        //    Name, devInfo.VendId, devInfo.ProdId, devInfo.Serial, (uint)_vjdInfo.ledNumber, devInfo.ColorBar);
+        //}
+        //else {
+        //  _logger.LogWarning("GetDevInfo() failed with error: {res:X}", res);
+        //  _vjdInfo.ledNumber = 0;
+        //}
+
+        uint devNum = 0;
+        if (vJoy.GetDevNumber(Handle, ref devNum) is var res && res == VJRESULT.SUCCESS) {
+          _vjdInfo.ledNumber = (byte)devNum;
+          _logger.LogDebug("Got DeviceNumber for {device}: {devNum}", Name, devNum);
+        }
+        else {
+          _logger.LogWarning("GetDevNumber() failed with error: {res:X}", res);
         }
       }
+
       // Check which axes are supported
       _axisInfo.Clear();
       foreach (var axe in Enum.GetValues<HID_USAGES>()) {
         if (_axisInfo.ContainsKey(axe))
           continue;  // skip duplicates/aliases
+        bool exists = false;
         int minval = 0, maxval = 0;
-        if (_vjoy.GetVJDAxisExist(_vjdInfo.id, axe)) {
-          _vjoy.GetVJDAxisRange(_vjdInfo.id, axe, ref minval, ref maxval);
+        if (vJoy.isAxisExist(Handle, axe, ref exists) == VJRESULT.SUCCESS && exists) {
+          vJoy.GetDevAxisRange(Handle, axe, ref minval, ref maxval);
           _axisInfo.Add(axe, new VJAxisInfo { usage = axe, minValue = minval, maxValue = maxval });
         }
       }
       _vjdInfo.nAxes = (ushort)_axisInfo.Count;
       // Get the number of buttons and POV Hat switches
-      _vjdInfo.nButtons = (ushort)_vjoy.GetVJDButtonNumber(_vjdInfo.id);
-      _vjdInfo.nContPov = (ushort)_vjoy.GetVJDContPovNumber(_vjdInfo.id);
-      _vjdInfo.nDiscPov = (ushort)_vjoy.GetVJDDiscPovNumber(_vjdInfo.id);
-
+      vJoy.GetDevButtonN(Handle, ref _vjdInfo.nButtons);
+      vJoy.GetDevHatN(Handle, VGEN_POV_TYPE.PovTypeContinuous, ref _vjdInfo.nContPov);
+      vJoy.GetDevHatN(Handle, VGEN_POV_TYPE.PovTypeDiscrete, ref _vjdInfo.nDiscPov);
       //RefreshState();  // debug
     }
 
     public string GetDeviceCapabilitiesReport()
     {
-      var vjid = _vjdInfo.id;
       HID_USAGES lastId = 0;
       var capsReport = new System.Text.StringBuilder();
       capsReport.Append($"\n{Name} Device capabilities:\n");
@@ -228,9 +241,10 @@ namespace TJoy
           continue;  // skip duplicates/aliases
         lastId = axe;
         int minval = 0, maxval = 0;
-        bool exists = _vjoy.GetVJDAxisExist(vjid, axe);
+        bool exists = false;
+        vJoy.isAxisExist(Handle, axe, ref exists);
         if (exists)
-          _vjoy.GetVJDAxisRange(vjid, axe, ref minval, ref maxval);
+          vJoy.GetDevAxisRange(Handle, axe, ref minval, ref maxval);
         capsReport.Append($"Axis {Util.AxisName(DeviceType, axe),-16}{(exists ? "Yes" : "No ")}\trange: {minval} - {maxval}\n");
       }
       capsReport.Append($"Number of buttons           {ButtonCount}\n");
@@ -242,28 +256,10 @@ namespace TJoy
 
     public void ResetDevice()
     {
-      if (IsGamepad) {
-        if (_vjoy.ResetController(Index) is var res && res != VJRESULT.SUCCESS)
-          _logger.LogWarning($"ResetController() returned error: {res}.");
-        return;
-      }
-      lock (_devInfoStructLock) {
-        foreach (var axe in _axisInfo.Values) {
-          int val = C.AXES_RESET_TO_MIN.Contains(axe.usage) ? axe.minValue : (axe.maxValue - axe.minValue) / 2;
-          _vjoy.SetAxis(val, _vjdInfo.id, axe.usage);
-        }
-        _vjoy.GetPosition(_vjdInfo.id, ref _vjdInfo.state.vJoyState);
-        _vjdInfo.state.vJoyState.bHats = 0xFFFFFFFF;
-        _vjdInfo.state.vJoyState.bHatsEx1 = 0xFFFFFFFF;
-        _vjdInfo.state.vJoyState.bHatsEx2 = 0xFFFFFFFF;
-        _vjdInfo.state.vJoyState.bHatsEx3 = 0xFFFFFFFF;
-        _vjdInfo.state.vJoyState.Buttons = 0;
-        _vjdInfo.state.vJoyState.ButtonsEx1 = 0;
-        _vjdInfo.state.vJoyState.ButtonsEx2 = 0;
-        _vjdInfo.state.vJoyState.ButtonsEx3 = 0;
-        _vjoy.UpdateVJD(_vjdInfo.id, ref _vjdInfo.state.vJoyState);
-        _vjdInfo.lastStateUpdate = Stopwatch.GetTimestamp();
-      }
+      if (vJoy.ResetDevPositions(Handle) is var res && res == VJRESULT.SUCCESS)
+        _logger.LogInformation("Device reset completed for {name}.", Name);
+      else
+        _logger.LogWarning("ResetDevPositions() on {name} returned error: {res:X}", Name, res);
     }
 
     public bool RefreshState()
@@ -274,18 +270,20 @@ namespace TJoy
       try {
         lock (_devInfoStructLock) {
           if (IsVJoy)
-            res = _vjoy.GetPosition(_vjdInfo.id, ref _vjdInfo.state.vJoyState);
+            res = vJoy.GetPosition(Handle, ref _vjdInfo.state.vJoyState);
+          else if (IsVbDS4)
+            res = vJoy.GetPosition(Handle, ref _vjdInfo.state.DS4State);
           else
-            res = _vjoy.GetPosition(_vjdInfo.id, ref _vjdInfo.state.xInputState.Gamepad);
-          //res = vJoy.GetXInputState((uint)_vjdInfo.ledNumber - 1, ref _vjdInfo.state.xInputState);
+            res = vJoy.GetPosition(Handle, ref _vjdInfo.state.xInputState.Gamepad);
+            //res = vJoy.GetXInputState((uint)_vjdInfo.ledNumber - 1, ref _vjdInfo.state.xInputState);
         }
         _vjdInfo.lastStateUpdate = Stopwatch.GetTimestamp();
         if (res != VJRESULT.SUCCESS)
-          _logger.LogWarning($"GetPostion() returned an error: {res}.");
+          _logger.LogWarning($"GetPosition() returned an error: {res}.");
         //_logger.LogDebug("res: {0}\n{1}", res, System.Text.Json.JsonSerializer.Serialize(_vjoyInfo.state, new System.Text.Json.JsonSerializerOptions { WriteIndented = true, IncludeFields = true }));
       }
       catch (Exception e) {
-        _logger.LogError(e, "Exception while trying to GetPostion().");
+        _logger.LogError(e, "Exception while trying to GetPosition().");
         return false;
       }
       return res == VJRESULT.SUCCESS;
@@ -302,7 +300,7 @@ namespace TJoy
     public bool TryGetAxisInfo(HID_USAGES axis, out VJAxisInfo info) {
       if (!_axisInfo.TryGetValue(axis, out info)) {
         info.usage = axis;
-        Util.GetDefaultAxisRange(axis, IsVJoy, out info.minValue, out info.maxValue);
+        Util.GetDefaultAxisRange(DeviceType, axis, out info.minValue, out info.maxValue);
         return false;
       }
       return true;
@@ -327,7 +325,7 @@ namespace TJoy
       return (int)ret;
     }
 
-    // scale joystick axis range (axeMin >= value <= axeMax) onto a variable %age range (outMin >= value <= outMax)
+    // scale joystick axis range (axeMin >= value <= axeMax) onto a variable percentage range (outMin >= value <= outMax)
     public int ScaleAxisToInputRange(HID_USAGES axis, int value, int outMin, int outMax)
     {
       _ = TryGetAxisInfo(axis, out VJAxisInfo info);
@@ -340,7 +338,7 @@ namespace TJoy
       return Math.Clamp(ret, 0, 100);
     }
 
-    // returns a value which is notmalized to fit withing the given axis' actual range (value is wrapped as needed to conform)
+    // returns a value which is normalized to fit withing the given axis' actual range (value is wrapped as needed to conform)
     public int GetNormalizedAxisValue(HID_USAGES axis, int value)
     {
       _ = TryGetAxisInfo(axis, out VJAxisInfo info);
@@ -407,18 +405,18 @@ namespace TJoy
     {
       switch (ev.btnAction) {
         case ButtonAction.Down:
-          _vjoy.SetBtn(true, ev.devId, ev.targetId);
+          vJoy.SetDevButton(Handle, ev.targetId, true);
           break;
         case ButtonAction.Up:
-          _vjoy.SetBtn(false, ev.devId, ev.targetId);
+          vJoy.SetDevButton(Handle, ev.targetId, false);
           break;
         case ButtonAction.Click:
-          _vjoy.SetBtn(true, ev.devId, ev.targetId);
-          VJoyReleaseButtonLater(ev.type, ev.devId, ev.targetId);
+          vJoy.SetDevButton(Handle, ev.targetId, true);
+          VJoyReleaseButtonLater(ev.type, ev.targetId);
           break;
         default:
           if (ev.value == 0 || ev.value == 1)
-            _vjoy.SetBtn(ev.value == 1, ev.devId, ev.targetId);
+            vJoy.SetDevButton(Handle, ev.targetId, ev.value == 1);
           return;
       }
     }
@@ -427,40 +425,42 @@ namespace TJoy
     {
       switch (ev.btnAction) {
         case ButtonAction.Down:
-          _vjoy.SetDiscPov((int)ev.dpovDir, ev.devId, ev.targetId);
+          vJoy.SetDevDiscPov(Handle, (byte)ev.targetId, (DPOV_DIRECTION)ev.dpovDir);
           break;
         case ButtonAction.Up:
-          _vjoy.SetDiscPov((int)DPovDirection.Center, ev.devId, ev.targetId);
+          vJoy.SetDevDiscPov(Handle, (byte)ev.targetId, DPOV_DIRECTION.DPOV_Center);
+          //_vjoy.SetDiscPov((int)DPovDirection.Center, ev.devId, ev.targetId);
           break;
         case ButtonAction.Click:
-          _vjoy.SetDiscPov((int)ev.dpovDir, ev.devId, ev.targetId);
-          VJoyReleaseButtonLater(ev.type, ev.devId, ev.targetId);
+          vJoy.SetDevDiscPov(Handle, (byte)ev.targetId, (DPOV_DIRECTION)ev.dpovDir);
+          VJoyReleaseButtonLater(ev.type, ev.targetId);
           break;
         default:
           if (ev.value > -2 && ev.value < 4)
-            _vjoy.SetDiscPov(ev.value, ev.devId, ev.targetId);
+            vJoy.SetDevDiscPov(Handle, (byte)ev.targetId, (DPOV_DIRECTION)ev.value);
           return;
       }
     }
 
     private void VJoyCPovAction(in VJEvent ev)
     {
-      _vjoy.SetContPov(ev.value, ev.devId, ev.targetId);
+      vJoy.SetDevContPov(Handle, (byte)ev.targetId, unchecked((uint)ev.value));
     }
 
     private void VJoyAxisAction(in VJEvent ev)
     {
-      _vjoy.SetAxis(ev.value, ev.devId, ev.axis);
+      //_vjoy.SetAxis(ev.value, ev.devId, ev.axis);
+      vJoy.SetDevAxis(Handle, ev.axis, ev.value);
     }
 
-    private void VJoyReleaseButtonLater(ControlType evtype, uint devId, uint targetId)
+    private void VJoyReleaseButtonLater(ControlType evtype, uint targetId)
     {
       System.Threading.Tasks.Task.Run(async delegate {
         await System.Threading.Tasks.Task.Delay(C.BUTTON_CLICK_WAIT_MS);
         if (evtype == ControlType.Button)
-          _vjoy.SetBtn(false, devId, targetId);
+          vJoy.SetDevButton(Handle, targetId, false);
         else
-          _vjoy.SetDiscPov((int)DPovDirection.Center, devId, targetId);
+          vJoy.SetDevDiscPov(Handle, (byte)targetId, DPOV_DIRECTION.DPOV_Center);
       });
     }
 

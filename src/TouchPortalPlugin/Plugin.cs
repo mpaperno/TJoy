@@ -104,38 +104,31 @@ namespace TJoy.TouchPortalPlugin
         Environment.Exit(0);
       };
 
-      vJoy vjoy = new();
-      if (vjoy.vJoyEnabled()) {
+      if (vJoy.IsDevTypeSupported(VGEN_DEV_TYPE.vJoy)) {
         _settings.HaveVJoy = true;
         // Get the driver attributes (Vendor ID, Product ID, Version Number)
         _logger.LogInformation("Virtual Joystick Driver Vendor: {0}, Product: {1}, Version: {2}",
-          vjoy.GetvJoyManufacturerString(), vjoy.GetvJoyProductString(), vjoy.GetvJoySerialNumberString());
+          vJoy.GetvJoyManufacturerString(), vJoy.GetvJoyProductString(), vJoy.GetvJoySerialNumberString());
 
         // Test if DLL matches the driver
         UInt32 dllVer = 0;
         UInt32 drivVer = 0;
-        if (vjoy.DriverMatch(ref dllVer, ref drivVer))
+        if (vJoy.DriverMatch(ref dllVer, ref drivVer))
           _logger.LogInformation($"Version of Driver Matches DLL Version ({dllVer:X})");
         else
           _logger.LogWarning($"Version of Driver ({drivVer:X}) does NOT match DLL Version ({dllVer:X})");   // hope they check this log to see why their computer exploded.... lol
 
         // subscribe to device config change events
-        vjoy.RegisterRemovalCB(VJoyDeviceChangedCB, null);
+        vJoy.RegisterRemovalCB(VJoyDeviceChangedCB, null);
         DetectVJoyDevices();
       }
 #if USE_VGEN
-      _settings.HaveVXbox = vjoy.isVBusExist() == VJRESULT.SUCCESS;
+      if ((_settings.HaveVXbox = vJoy.IsDevTypeSupported(VGEN_DEV_TYPE.vXbox)))
+        _logger.LogInformation("Found ScpVBus driver v{version:X}", vJoy.GetDriverVersion(VGEN_DEV_TYPE.vXbox));
 #endif
 #if USE_VIGEM
-      try {
-        vBus = new ViGEmClient();
-        _settings.HaveVBus = true;
-        _logger.LogInformation($"Found ViGEm Bus driver {}.");
-        vBus.Dispose();
-      }
-      catch (Exception e) {
-        _logger.LogWarning(e, "Failed to create ViGEmClient, driver not installed or already in use.");
-      }
+      if ((_settings.HaveVBus = vJoy.IsDevTypeSupported(VGEN_DEV_TYPE.vgeXbox)))
+        _logger.LogInformation("Found ViGEm Bus driver v{version:X}", vJoy.GetDriverVersion(VGEN_DEV_TYPE.vgeXbox));
 #endif
 
       _eventWorkerTask.Start();
@@ -167,6 +160,8 @@ namespace TJoy.TouchPortalPlugin
       _logger?.LogDebug("Removing all devices...");
       RemoveAllDevices();    // before stopping worker
       //ClearAllTpJoystickStates();  // not sure about this.. or maybe we only remove states when device disconnects
+
+      vJoy.DeInit();  // release any resources (allocations for ViGEm)
 
       _logger?.LogDebug("Shutting down the event worker...");
       _shutdownCts?.Cancel();
@@ -273,7 +268,7 @@ namespace TJoy.TouchPortalPlugin
     private int GetResetValueFromEvent(DataContainerEventBase message, string actId, ControlType evtype, int startValue = 0)
     {
       // Get reset type and value
-      var isConn = message.GetType() == typeof(ConnectorChangeEvent);
+      //var isConn = message.GetType() == typeof(ConnectorChangeEvent);
       var rstStr = message.GetValue(C.IDSTR_RESET_TYP)?.Replace(" ", string.Empty) ?? "None";
       var rvalStr = message.GetValue(C.IDSTR_RESET_VAL) ?? "-2";
       if (Enum.TryParse(rstStr, true, out CtrlResetMethod rstType) && rstType != CtrlResetMethod.None && TryEvaluateValue(rvalStr, out int customVal))
@@ -346,21 +341,21 @@ namespace TJoy.TouchPortalPlugin
         device = new JoyDevice(_loggerFactory, vjid);
         // Attempt connection
         if (!device.Connect()) {
-          _logger.LogError($"Failed to acquire {device.Name}.");
+          _logger.LogError("Failed to acquire {name}.", device.Name);
           return null;
         }
       }
       catch (Exception e) {
-        _logger.LogError(e, "Failed to create JoyDevice for device number {0}.", vjid);
+        _logger.LogError(e, "Failed to create JoyDevice for device number {vjid}.", vjid);
         return null;
       }
 
       _devices.Add(vjid, device);
-      _logger.LogInformation($"Acquired: {device.Name}");
-      _logger.LogInformation(device.GetDeviceCapabilitiesReport());
+      _logger.LogInformation("Acquired: {name}", device.Name);
+      _logger.LogDebug("{caps}", device.GetDeviceCapabilitiesReport());
 
       UpdateTPState(C.IDSTR_STATE_LAST_CONNECT, $"{device.Name}");
-      if (device.IsGamepad)
+      if (device.IsXBox)
         UpdateTPState($"{C.IDSTR_GAMEPAD}.{device.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", device.LedNumber.ToString());
       UpdateDeviceConnectors(vjid);
 
@@ -378,7 +373,7 @@ namespace TJoy.TouchPortalPlugin
       oldDev.RelinquishDevice();
       _devices.Remove(vjid);
       UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, $"{oldDev.Name}");
-      if (oldDev.IsGamepad)
+      if (oldDev.IsXBox)
         UpdateTPState($"{C.IDSTR_GAMEPAD}.{oldDev.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", "0");
       UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, "");
     }
@@ -408,8 +403,7 @@ namespace TJoy.TouchPortalPlugin
       if (devType == DeviceType.VJoy)
         return;
       if (devType == DeviceType.VXBox) {
-        vJoy vjoy = new();
-        var res = vjoy.UnPlugForce(vjid - (uint)devType);
+        var res = vJoy.UnPlugForce(vjid - (uint)devType);
         if (res != VJRESULT.SUCCESS)
           _logger.LogError("Force Unplug of device {0} failed with error code {1}.", vjid, res);
       }
@@ -421,9 +415,8 @@ namespace TJoy.TouchPortalPlugin
       if (!_settings.HaveVJoy)
         return;
       try {
-        vJoy vjoy = new();
         for (uint i = 1; i <= 16; ++i) {
-          if (vjoy.isVJDExists(i))
+          if (vJoy.isVJDExists(i))
             _settings.AvailableVJoyDevs.Add(i);
         }
       }
@@ -434,7 +427,7 @@ namespace TJoy.TouchPortalPlugin
 
     // vJoy device change notification callback.
     // Note that _all_ driver devices are reloaded whenever any change is applied in the vJ configurator.
-    // We disconnect when the first removal notice comes, then try reconnecting to "our" device
+    // We disconnect when the first removal notice comes, then try reconnecting to "our" device(s)
     // after the final (!first) arrival notice. From the vJ docs:
     // When a process of vJoy device removal starts, Removed = TRUE and First = TRUE.
     // When a process of vJoy device removal ends, Removed = TRUE and First = FALSE.
@@ -490,7 +483,7 @@ namespace TJoy.TouchPortalPlugin
       _stateTaskCts = null;
     }
 
-    private void ToggletatusDataTask()
+    private void ToggleStatusDataTask()
     {
       if (_settings.StateRefreshRate > 0 && (_stateUpdateTask == null || _stateUpdateTask.IsCompleted))
         StartStatusDataTask();
@@ -561,7 +554,7 @@ namespace TJoy.TouchPortalPlugin
       // Buttons
       if (_settings.MinBtnNumForState > 0 && _settings.MaxBtnNumForState >= _settings.MinBtnNumForState) {
         for (uint i = _settings.MinBtnNumForState, e = Math.Min(_settings.MaxBtnNumForState, devInfo.nButtons); i <= e; ++i) {
-          var val = Util.GetStateReporButtonValue(devInfo.deviceType, devInfo.state, i);
+          var val = Util.GetStateReportButtonValue(devInfo.deviceType, devInfo.state, i);
           if (val < 0)
             continue;
           UpdateTpJoystickState(ControlType.Button, val, devInfo.typeName, devInfo.index, Util.ButtonName(devInfo.deviceType, i));
@@ -731,11 +724,8 @@ namespace TJoy.TouchPortalPlugin
       UpdateRelatedConnectors(cdata);
     }
 
-    private void UpdateRelatedConnectors(/*object obj*/ ConnectorTrackingData data)
+    private void UpdateRelatedConnectors(in ConnectorTrackingData data)
     {
-      //if (obj?.GetType() != typeof(ConnectorTrackingData))
-      //return;
-      //var data = (ConnectorTrackingData)obj;
       if (!TryGetDevice(data.devId, out JoyDevice device))
         return;
 
@@ -798,7 +788,7 @@ namespace TJoy.TouchPortalPlugin
         valueMs = 100;
       if (_settings.StateRefreshRate != valueMs) {
         _settings.StateRefreshRate = valueMs;
-        ToggletatusDataTask();
+        ToggleStatusDataTask();
       }
     }
 
@@ -1080,11 +1070,8 @@ namespace TJoy.TouchPortalPlugin
           _logger.LogWarning($"Reversing type invalid for Connector ID '{message.Id}' for '{device.Name}' with control ID '{idStr}', value: '{revStr}'");
           return false;
         }
-        if (revType == AxisMovementDir.Reverse) {
-          var tmpMax = ev.rangeMax;
-          ev.rangeMax = ev.rangeMin;
-          ev.rangeMin = tmpMax;
-        }
+        if (revType == AxisMovementDir.Reverse)
+          (ev.rangeMin, ev.rangeMax) = (ev.rangeMax, ev.rangeMin);
       }
 
       return true;
@@ -1316,7 +1303,7 @@ namespace TJoy.TouchPortalPlugin
 
       // extract the attributes we are interested in from the key=value pairs
       foreach (var data in connData) {
-        switch (data.Key.Split('.').Last()) {
+        switch (data.Key) {
           case C.IDSTR_DEVICE_ID:
             // Device ID, or default
             if ((devId = GetFullDeviceIdOrDefault(data.Value)) == 0)
@@ -1372,11 +1359,8 @@ namespace TJoy.TouchPortalPlugin
         return;
       }
 
-      if (reverse == AxisMovementDir.Reverse) {
-        int tmpMax = idata.rangeMax;
-        idata.rangeMax = idata.rangeMin;
-        idata.rangeMin = tmpMax;
-      }
+      if (reverse == AxisMovementDir.Reverse)
+        (idata.rangeMin, idata.rangeMax) = (idata.rangeMax, idata.rangeMin);
 
       // Get existing connector tracking data based on parsed device, connector, and target fields, or start a new entry.
       string key = Util.ConnectorDictKey(devId, connId, targetId);
@@ -1416,7 +1400,7 @@ namespace TJoy.TouchPortalPlugin
     }
 
     public void OnListChangedEvent(ListChangeEvent message) {
-      _logger.LogDebug($"[OnListChanged] {message.ActionId} / {message.ListId} / {message.InstanceId} = '{message.Value}'  shutdown: {_disposed}");
+      _logger.LogDebug("[OnListChanged] {ActionId} / {ListId} / {InstanceId} = '{Value}'", message.ActionId, message.ListId, message.InstanceId, message.Value);
       if (string.IsNullOrWhiteSpace(message.Value) || _disposed)
         return;
       var listParts = message.ListId.Split('.');

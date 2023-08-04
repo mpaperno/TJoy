@@ -77,8 +77,8 @@ namespace TJoy.Constants
 
     internal const string STR_DEVNAME_VJOY   = "vJoy";
     internal const string STR_DEVNAME_VXBOX  = "vXBox";
-    internal const string STR_DEVNAME_VBXBOX = "vbXBox";
-    internal const string STR_DEVNAME_VBDS4  = "vbDS4";
+    internal const string STR_DEVNAME_VBXBOX = "vgeXBox";
+    internal const string STR_DEVNAME_VBDS4  = "vgeDS4";
 
     internal const string STR_AXIS        = "Axis";
     internal const string STR_CONT_POV    = "Continuous Hat";
@@ -104,28 +104,42 @@ namespace TJoy.Constants
     internal const string STR_XBOX_BTN9   = "Guide";
     internal const string STR_XBOX_BTN10  = "LT";
     internal const string STR_XBOX_BTN11  = "RT";
+    internal const string STR_XBOX_BTN12  = "DP UP";
+    internal const string STR_XBOX_BTN13  = "DP RIGHT";
+    internal const string STR_XBOX_BTN14  = "DP DOWN";
+    internal const string STR_XBOX_BTN15  = "DP LEFT";
+    internal const string STR_XBOX_BTN16  = "DP NE";
+    internal const string STR_XBOX_BTN17  = "DP SE";
+    internal const string STR_XBOX_BTN18  = "DP SW";
+    internal const string STR_XBOX_BTN19  = "DP NW";
 
-    internal const string STR_PS4_BTN1    = "⬜";
-    internal const string STR_PS4_BTN2    = "⛌";
-    internal const string STR_PS4_BTN3    = "◯";
+    internal const string STR_PS4_BTN1    = "⛌";
+    internal const string STR_PS4_BTN2    = "◯";
+    internal const string STR_PS4_BTN3    = "⬜";
     internal const string STR_PS4_BTN4    = "△";
-    internal const string STR_PS4_BTN5    = "SL";
-    internal const string STR_PS4_BTN6    = "SR";
-    internal const string STR_PS4_BTN7    = "TL";
-    internal const string STR_PS4_BTN8    = "TR";
-    internal const string STR_PS4_BTN9    = "Share";
-    internal const string STR_PS4_BTN10   = "Options";
-    internal const string STR_PS4_BTN11   = "LT";
-    internal const string STR_PS4_BTN12   = "RT";
+    internal const string STR_PS4_BTN5    = "L1";
+    internal const string STR_PS4_BTN6    = "R1";
+    internal const string STR_PS4_BTN7    = "Share";
+    internal const string STR_PS4_BTN8    = "Options";
+    internal const string STR_PS4_BTN9    = "PS";
+    internal const string STR_PS4_BTN10   = "L3";
+    internal const string STR_PS4_BTN11   = "R3";
+    internal const string STR_PS4_BTN12   = "DP N";
+    internal const string STR_PS4_BTN13   = "DP E";
+    internal const string STR_PS4_BTN14   = "DP S";
+    internal const string STR_PS4_BTN15   = "DP W";
+    internal const string STR_PS4_BTN16   = "DP NE";
+    internal const string STR_PS4_BTN17   = "DP SE";
+    internal const string STR_PS4_BTN18   = "DP SW";
+    internal const string STR_PS4_BTN19   = "DP NW";
+    internal const string STR_PS4_BTN20   = "L2";
+    internal const string STR_PS4_BTN21   = "R2";
+    internal const string STR_PS4_BTN22   = "TPad";
 
-    internal const string STR_DPAD_UP     = "DP UP";
-    internal const string STR_DPAD_DN     = "DP DOWN";
-    internal const string STR_DPAD_LFT    = "DP LEFT";
-    internal const string STR_DPAD_RGT    = "DP RIGHT";
-
-    internal const int BUTTON_CLICK_WAIT_MS = 50;   // ms to wait between button down and up for a "click" event
-    internal const int CONNECTOR_MOVE_TO_SEC = 15;  // timeout secs after which to assume a connector is no longer being moved
+    internal const int BUTTON_CLICK_WAIT_MS  = 50;  // ms to wait between button down and up for a "click" event
+    internal const int CONNECTOR_MOVE_TO_SEC = 7;   // timeout secs after which to assume a connector is no longer being moved
     internal const int VJD_STATE_MAX_AGE_SEC = 10;  // joystick state data is considered old after this many seconds (used for updating connectors, not the TP state updates)
+
 
     // vJoy
     internal const int VJ_AXIS_MIN_VALUE = 0;
@@ -134,19 +148,23 @@ namespace TJoy.Constants
     internal const int VJ_CPOV_MAX_VALUE = 35900;   // docs claim 35999 but anything over 35900 causes it to center (as if it wraps to -1) and device info confirms 35900 is max.
 
     // XOutput
+    internal const short XO_MAX_BTNS = 19;
     internal const int XO_SLIDER_MIN_VALUE = 0;
     internal const int XO_SLIDER_MAX_VALUE = 0xFF;
     internal const int XO_AXIS_MIN_VALUE   = -0x8000;
     internal const int XO_AXIS_MAX_VALUE   = 0x7FFF;
 
+    // DS4
+    internal const short DS4_MAX_BTNS = 22;
+    internal const int DS4_AXIS_MIN_VALUE = 0;
+    internal const int DS4_AXIS_MAX_VALUE = 0xFF;
+
+    internal const int DS4_SPECIAL_BUTTON_FLAG = 1 << 16;
+
 #if VJOY_API_2_1
     internal static readonly uint VJOY_API_VERSION = 0x0219;  // same as vGen
-    // list of axes which should (probably) be reset to zero vs. centered
-    internal static readonly HID_USAGES[] AXES_RESET_TO_MIN = new[] { HID_USAGES.HID_USAGE_SL0 };
 #else
     internal static readonly uint VJoyApiVersion = 0x0220;
-    // list of axes which should (probably) be reset to zero vs. centered
-    internal static readonly HID_USAGES[] AXES_RESET_TO_MIN = new[] { HID_USAGES.HID_USAGE_THROTTLE, HID_USAGES.HID_USAGE_SL0, HID_USAGES.HID_USAGE_CLUTCH, HID_USAGES.HID_USAGE_BRAKE };
 #endif
 
   }

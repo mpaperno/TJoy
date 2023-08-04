@@ -26,7 +26,8 @@ using TJoy.Constants;
 using TJoy.Types;
 using Math = System.Math;
 using Stopwatch = System.Diagnostics.Stopwatch;
-#if USE_VGEN
+using System;
+#if USE_VGEN || USE_VIGEM
 using vJoy = vGenInterfaceWrap.vGen;
 #else
 using vJoy = vJoyInterfaceWrap.vJoy;
@@ -35,7 +36,12 @@ using vJoy = vJoyInterfaceWrap.vJoy;
 namespace TJoy.Utilities
 {
   using JoystickState = vJoy.JoystickState;
+#if USE_VGEN || USE_VIGEM
   using GamepadState = vJoy.GamepadState;
+#endif
+#if USE_VIGEM
+  using DS4State = vJoy.DualShock4State;
+#endif
 
   internal static class Util
   {
@@ -90,36 +96,22 @@ namespace TJoy.Utilities
       return _gamepadAxisNames[idx];
     }
 
-    private const short XBOX_MAX_BTNS = 15;
-    private const short SDS4_MAX_BTNS = 16;   // 18 with specials?
-
-    private readonly static XINPUT_BUTTONS[] _xboxButtonMap = new XINPUT_BUTTONS[17] { XINPUT_BUTTONS.NONE,
-      XINPUT_BUTTONS.A, XINPUT_BUTTONS.B, XINPUT_BUTTONS.X, XINPUT_BUTTONS.Y,
-      XINPUT_BUTTONS.LEFT_SHOULDER, XINPUT_BUTTONS.RIGHT_SHOULDER, XINPUT_BUTTONS.BACK, XINPUT_BUTTONS.START,
-      XINPUT_BUTTONS.GUIDE, XINPUT_BUTTONS.LEFT_THUMB, XINPUT_BUTTONS.RIGHT_THUMB,
-      XINPUT_BUTTONS.DPAD_UP, XINPUT_BUTTONS.DPAD_DOWN, XINPUT_BUTTONS.DPAD_LEFT, XINPUT_BUTTONS.DPAD_RIGHT,
-      XINPUT_BUTTONS.NONE  // stick a dummy on the end so we don't have to worry about the array len between xbox and ds4
+    private readonly static string[] _xboxButtonNames = new string[C.XO_MAX_BTNS + 1] {  C.STR_NONE,
+      C.STR_XBOX_BTN1, C.STR_XBOX_BTN2, C.STR_XBOX_BTN3, C.STR_XBOX_BTN4,      // A, B, X, Y
+      C.STR_XBOX_BTN5, C.STR_XBOX_BTN6,                                        // LB, RB
+      C.STR_XBOX_BTN7, C.STR_XBOX_BTN8, C.STR_XBOX_BTN9,                       // Back, Start, Guide
+      C.STR_XBOX_BTN10, C.STR_XBOX_BTN11,                                      // Thumb Left, Right
+      C.STR_XBOX_BTN12, C.STR_XBOX_BTN13, C.STR_XBOX_BTN14, C.STR_XBOX_BTN15,  // DPAD N, E, S, W
+      C.STR_XBOX_BTN16, C.STR_XBOX_BTN17, C.STR_XBOX_BTN18, C.STR_XBOX_BTN19,  // DPAD NE, SE, SW, NW
     };
-
-    private readonly static XINPUT_BUTTONS[] _ps4ButtonMap = new XINPUT_BUTTONS[17] { XINPUT_BUTTONS.NONE,
-      XINPUT_BUTTONS.A, XINPUT_BUTTONS.B, XINPUT_BUTTONS.X, XINPUT_BUTTONS.Y,
-      XINPUT_BUTTONS.LEFT_SHOULDER, XINPUT_BUTTONS.RIGHT_SHOULDER,
-      XINPUT_BUTTONS.BACK, XINPUT_BUTTONS.START, XINPUT_BUTTONS.GUIDE, XINPUT_BUTTONS.NONE,  // FIXME for PS4, these 4 are different than xbox
-      XINPUT_BUTTONS.LEFT_THUMB, XINPUT_BUTTONS.RIGHT_THUMB,
-      XINPUT_BUTTONS.DPAD_UP, XINPUT_BUTTONS.DPAD_DOWN, XINPUT_BUTTONS.DPAD_LEFT, XINPUT_BUTTONS.DPAD_RIGHT
-    };
-
-    private readonly static string[] _xboxButtonNames = new[] {  C.STR_NONE,
-      C.STR_XBOX_BTN1, C.STR_XBOX_BTN2, C.STR_XBOX_BTN3, C.STR_XBOX_BTN4,
-      C.STR_XBOX_BTN5, C.STR_XBOX_BTN6, C.STR_XBOX_BTN7, C.STR_XBOX_BTN8,
-      C.STR_XBOX_BTN9, C.STR_XBOX_BTN10, C.STR_XBOX_BTN11,
-      C.STR_DPAD_UP, C.STR_DPAD_DN, C.STR_DPAD_LFT, C.STR_DPAD_RGT
-    };
-    private readonly static string[] _ps4ButtonNames = new[] {  C.STR_NONE,
-      C.STR_PS4_BTN1, C.STR_PS4_BTN2, C.STR_PS4_BTN3, C.STR_PS4_BTN4,
-      C.STR_PS4_BTN5, C.STR_PS4_BTN6, C.STR_PS4_BTN7, C.STR_PS4_BTN8,
-      C.STR_PS4_BTN9, C.STR_PS4_BTN10, C.STR_PS4_BTN11, C.STR_PS4_BTN12,
-      C.STR_DPAD_UP, C.STR_DPAD_DN, C.STR_DPAD_LFT, C.STR_DPAD_RGT
+    private readonly static string[] _ps4ButtonNames = new string[C.DS4_MAX_BTNS+1] {  C.STR_NONE,
+      C.STR_PS4_BTN1, C.STR_PS4_BTN2, C.STR_PS4_BTN3, C.STR_PS4_BTN4,      // cross, circle, square, triangle
+      C.STR_PS4_BTN5, C.STR_PS4_BTN6,                                      // L1, R1
+      C.STR_PS4_BTN7, C.STR_PS4_BTN8, C.STR_PS4_BTN9,                      // Opt, Share, PS
+      C.STR_PS4_BTN10, C.STR_PS4_BTN11,                                    // L3, R3
+      C.STR_PS4_BTN12, C.STR_PS4_BTN13, C.STR_PS4_BTN14, C.STR_PS4_BTN15,  // DPAD N, E, S, W
+      C.STR_PS4_BTN16, C.STR_PS4_BTN17, C.STR_PS4_BTN18, C.STR_PS4_BTN19,  // DPAD NE, SE, SW, NW
+      C.STR_PS4_BTN20, C.STR_PS4_BTN21, C.STR_PS4_BTN22                    // L2, R2, TPad
     };
 
     internal static string ButtonName(DeviceType devType, uint targetId)
@@ -129,11 +121,11 @@ namespace TJoy.Utilities
           return targetId.ToString("000");
         case DeviceType.VXBox:
         case DeviceType.VBXBox:
-          if (targetId <= XBOX_MAX_BTNS)
+          if (targetId <= C.XO_MAX_BTNS)
             return _xboxButtonNames[targetId];
           return C.STR_NONE;
         case DeviceType.VBDS4:
-          if (targetId <= SDS4_MAX_BTNS)
+          if (targetId <= C.DS4_MAX_BTNS)
             return _ps4ButtonNames[targetId];
           return C.STR_NONE;
         default:
@@ -190,26 +182,6 @@ namespace TJoy.Utilities
       return C.STR_NONE;
     }
 
-    private static readonly DPovDirection[] _dpadToDirectionMap = new[] {
-      DPovDirection.Center,       // NONE       0
-      DPovDirection.North,        // DPAD_UP    1
-      DPovDirection.South,        // DPAD_DOWN  2
-      DPovDirection.None,         // invalid    3
-      DPovDirection.West,         // DPAD_LEFT  4
-      DPovDirection.NorthWest,    // UP_LEFT    5
-      DPovDirection.SouthWest,    // DOWN_LEFT  6
-      DPovDirection.None,         // invalid    7
-      DPovDirection.East,         // DPAD_RIGHT 8
-      DPovDirection.NorthEast,    // UP_RIGHT   9
-      DPovDirection.SouthEast,    // DOWN_RIGHT 10
-    };
-    internal static DPovDirection XdpadToTjoyDirection(XINPUT_BUTTONS xbuttons)
-    {
-      if ((xbuttons & XINPUT_BUTTONS.DPAD_MASK) is var mask && mask <= XINPUT_BUTTONS.DPAD_DOWN_RIGHT)
-        return _dpadToDirectionMap[(int)mask];
-      return DPovDirection.None;
-    }
-
     #endregion  Lookups
 
     #region Device and Action helpers          /////////////////////////////////////////////////
@@ -225,22 +197,41 @@ namespace TJoy.Utilities
         return uint.TryParse(devSpec[0], out id);
       if (devSpec.Length != 2)
         return false;
-      return System.Enum.TryParse(devSpec[0], true, out type) && uint.TryParse(devSpec[1], out id);
+
+      type = devSpec[0] switch {
+        C.STR_DEVNAME_VJOY   => DeviceType.VJoy,
+        C.STR_DEVNAME_VXBOX  => DeviceType.VXBox,
+        C.STR_DEVNAME_VBXBOX => DeviceType.VBXBox,
+        C.STR_DEVNAME_VBDS4  => DeviceType.VBDS4,
+        _ => DeviceType.None,
+      };
+      return type != DeviceType.None && uint.TryParse(devSpec[1], out id);
     }
 
-    internal static void GetDefaultAxisRange(HID_USAGES axis, bool isVJoy, out int minValue, out int maxValue)
+    internal static void GetDefaultAxisRange(DeviceType devType, HID_USAGES axis, out int minValue, out int maxValue)
     {
       if (axis == HID_USAGES.HID_USAGE_POV) {
         minValue = C.VJ_CPOV_MIN_VALUE;
         maxValue = C.VJ_CPOV_MAX_VALUE;
         return;
       }
-      if (isVJoy) {
+#if USE_VGEN
+      // vGen always uses vJoy axis ranges
+      minValue = C.VJ_AXIS_MIN_VALUE;
+      maxValue = C.VJ_AXIS_MAX_VALUE;
+#else
+      if (devType == DeviceType.VJoy) {
         minValue = C.VJ_AXIS_MIN_VALUE;
         maxValue = C.VJ_AXIS_MAX_VALUE;
         return;
       }
-      if (axis == HID_USAGES.HID_USAGE_RZ || axis == HID_USAGES.HID_USAGE_Z) {
+      if (devType == DeviceType.VBDS4) {
+        minValue = C.DS4_AXIS_MIN_VALUE;
+        maxValue = C.DS4_AXIS_MAX_VALUE;
+        return;
+      }
+      // XBox
+      if (axis == HID_USAGES.HID_USAGE_RT || axis == HID_USAGES.HID_USAGE_LT) {
         minValue = C.XO_SLIDER_MIN_VALUE;
         maxValue = C.XO_SLIDER_MAX_VALUE;
       }
@@ -248,6 +239,7 @@ namespace TJoy.Utilities
         minValue = C.XO_AXIS_MIN_VALUE;
         maxValue = C.XO_AXIS_MAX_VALUE;
       }
+#endif  // USE_VGEN
     }
 
     internal static IReadOnlyCollection<VJAxisInfo> GetDefaultAxisInfo(DeviceType devType)
@@ -260,7 +252,7 @@ namespace TJoy.Utilities
         lastId = axe;
         VJAxisInfo ai;
         ai.usage = axe;
-        GetDefaultAxisRange(axe, devType == DeviceType.VJoy, out ai.minValue, out ai.maxValue);
+        GetDefaultAxisRange(devType, axe, out ai.minValue, out ai.maxValue);
         ret.Add(ai);
         if (devType != DeviceType.VJoy && ret.Count == 6)
           break;
@@ -272,8 +264,8 @@ namespace TJoy.Utilities
     {
       return devType switch {
         DeviceType.VJoy => 64,    // 128 really, but that's a lot!
-        DeviceType.VXBox or DeviceType.VBXBox => (uint)XBOX_MAX_BTNS,
-        DeviceType.VBDS4 => (uint)SDS4_MAX_BTNS,
+        DeviceType.VXBox or DeviceType.VBXBox => (uint)C.XO_MAX_BTNS,
+        DeviceType.VBDS4 => (uint)C.DS4_MAX_BTNS,
         _ => 0,
       };
     }
@@ -321,33 +313,61 @@ namespace TJoy.Utilities
     // Returns -2 if no value (eg. POV axis)
     internal static int GetStateReportAxisValue(DeviceType devType, in VJDState state, HID_USAGES axis)
     {
-      if (devType == DeviceType.VJoy)
-        return GetVJoyStateReportAxisValue(state.vJoyState, axis);
-      return GetXInputStateAxisValue(state.xInputState.Gamepad, axis);
+      return devType switch {
+        DeviceType.VJoy => GetVJoyStateReportAxisValue(state.vJoyState, axis),
+#if USE_VGEN || USE_VIGEM
+        DeviceType.VXBox or DeviceType.VBXBox => GetXInputStateAxisValue(state.xInputState.Gamepad, axis),
+#endif
+#if USE_VIGEM
+        DeviceType.VBDS4 => GetDS4StateAxisValue(state.DS4State, axis),
+#endif
+        _ => 0
+      };
     }
 
     // Returns -2 if no value
     internal static int GetStateReportCPovValue(DeviceType devType, in VJDState state, uint targetId)
     {
-      if (devType == DeviceType.VJoy)
-        return GetVJoyStateReportCPovValue(state.vJoyState, targetId);
-      return GetXInputStateCPovValue(state.xInputState.Gamepad, targetId);
+      return devType switch {
+        DeviceType.VJoy => GetVJoyStateReportCPovValue(state.vJoyState, targetId),
+#if USE_VGEN || USE_VIGEM
+        DeviceType.VXBox or DeviceType.VBXBox => GetXInputStateCPovValue(state.xInputState.Gamepad, targetId),
+#endif
+#if USE_VIGEM
+        DeviceType.VBDS4 => GetDS4StateCPovValue(state.DS4State, targetId),
+#endif
+        _ => 0
+      };
     }
 
     // Returns -2 if no value (eg. invalid POV). Returns -1 when the POV is centered.
     internal static DPovDirection GetStateReportDPovValue(DeviceType devType, in VJDState state, uint targetId)
     {
-      if (devType == DeviceType.VJoy)
-        return GetVJoyStateReportDPovValue(state.vJoyState, targetId);
-      return GetXInputStateDpadValue(state.xInputState.Gamepad, targetId);
+      return devType switch {
+        DeviceType.VJoy => GetVJoyStateReportDPovValue(state.vJoyState, targetId),
+#if USE_VGEN || USE_VIGEM
+        DeviceType.VXBox or DeviceType.VBXBox => GetXInputStateDpadValue(state.xInputState.Gamepad, targetId),
+#endif
+#if USE_VIGEM
+        DeviceType.VBDS4 => GetDS4StateDpadValue(state.DS4State, targetId),
+#endif
+        _ => 0
+      };
     }
 
     // Returns -2 if no value (eg. invalid POV). Returns -1 when the POV is centered.
-    internal static int GetStateReporButtonValue(DeviceType devType, in VJDState state, uint targetId)
+    internal static int GetStateReportButtonValue(DeviceType devType, in VJDState state, uint targetId)
     {
-      if (devType == DeviceType.VJoy)
-        return GetVJoyStateReportButtonValue(state.vJoyState, targetId);
-      return GetXInputStateButtonValue(devType, state.xInputState.Gamepad, targetId);
+      return devType switch {
+        DeviceType.VJoy => GetVJoyStateReportButtonValue(state.vJoyState, targetId),
+#if USE_VGEN || USE_VIGEM
+        DeviceType.VXBox or DeviceType.VBXBox => GetXInputStateButtonValue(state.xInputState.Gamepad, targetId),
+#endif
+#if USE_VIGEM
+        DeviceType.VBDS4 => GetDS4StateButtonValue(state.DS4State, targetId),
+#endif
+        _ => 0
+      };
     }
 
     // vJoy
@@ -366,7 +386,7 @@ namespace TJoy.Utilities
         HID_USAGES.HID_USAGE_SL0 => state.Slider,
         HID_USAGES.HID_USAGE_SL1 => state.Dial,
         HID_USAGES.HID_USAGE_WHL => state.Wheel,
-        HID_USAGES.HID_USAGE_POV => -2,  // not an actual axis in the struct
+        HID_USAGES.HID_USAGE_POV => (int)state.bHats, // -2,  // not an actual axis in the struct
 #if VJOY_API_2_2
         HID_USAGES.HID_USAGE_AILERON => state.Aileron,
         HID_USAGES.HID_USAGE_RUDDER => state.Rudder,
@@ -431,18 +451,18 @@ namespace TJoy.Utilities
     }
 
     // XInput
-
+#if USE_VGEN || USE_VIGEM
     internal static int GetXInputStateAxisValue(in GamepadState state, HID_USAGES axis)
     {
       // If Axis is X,Y,RX,RY then remap range:  -32768 - 32767 ==> 0 - 32767
       // If Triggers (Z,RZ) then remap range:           0 - 255 ==> 0 - 32767
       return axis switch {
-        HID_USAGES.HID_USAGE_LX => ConvertRange(state.ThumbLX, -0x8000, 0x7FFF, 0, 0x7FFF, true),
-        HID_USAGES.HID_USAGE_LY => ConvertRange(state.ThumbLY, -0x8000, 0x7FFF, 0, 0x7FFF, true),
-        HID_USAGES.HID_USAGE_RX => ConvertRange(state.ThumbRX, -0x8000, 0x7FFF, 0, 0x7FFF, true),
-        HID_USAGES.HID_USAGE_RY => ConvertRange(state.ThumbRY, -0x8000, 0x7FFF, 0, 0x7FFF, true),
-        HID_USAGES.HID_USAGE_LT => ConvertRange(state.LeftTrigger, 0, 0xFF, 0, 0x7FFF, true),
-        HID_USAGES.HID_USAGE_RT => ConvertRange(state.RightTrigger, 0, 0xFF, 0, 0x7FFF, true),
+        HID_USAGES.HID_USAGE_LX => ConvertRange(state.ThumbLX, C.XO_AXIS_MIN_VALUE, C.XO_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_LY => ConvertRange(state.ThumbLY, C.XO_AXIS_MIN_VALUE, C.XO_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_RX => ConvertRange(state.ThumbRX, C.XO_AXIS_MIN_VALUE, C.XO_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_RY => ConvertRange(state.ThumbRY, C.XO_AXIS_MIN_VALUE, C.XO_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_LT => ConvertRange(state.LeftTrigger,  C.XO_SLIDER_MIN_VALUE, C.XO_SLIDER_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_RT => ConvertRange(state.RightTrigger, C.XO_SLIDER_MIN_VALUE, C.XO_SLIDER_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
         _ => -2
       };
     }
@@ -456,24 +476,114 @@ namespace TJoy.Utilities
       return -2;
     }
 
+    private static readonly DPovDirection[] _xinputDPadToDirectionMap = new[] {
+      DPovDirection.Center,       // NONE       0
+      DPovDirection.North,        // DPAD_UP    1
+      DPovDirection.South,        // DPAD_DOWN  2
+      DPovDirection.None,         // invalid    3
+      DPovDirection.West,         // DPAD_LEFT  4
+      DPovDirection.NorthWest,    // UP_LEFT    5
+      DPovDirection.SouthWest,    // DOWN_LEFT  6
+      DPovDirection.None,         // invalid    7
+      DPovDirection.East,         // DPAD_RIGHT 8
+      DPovDirection.NorthEast,    // UP_RIGHT   9
+      DPovDirection.SouthEast,    // DOWN_RIGHT 10
+    };
+
     internal static DPovDirection GetXInputStateDpadValue(in GamepadState state, uint targetId)
     {
       if (targetId == 0 || targetId > 1)
         return DPovDirection.None;
-      return XdpadToTjoyDirection(state.Buttons);
+      if ((state.Buttons & XINPUT_BUTTONS.DPAD_MASK) is var mask && mask <= XINPUT_BUTTONS.DPAD_DOWN_RIGHT)
+        return _xinputDPadToDirectionMap[(int)mask];
+      return DPovDirection.None;
     }
 
-    internal static int GetXInputStateButtonValue(DeviceType devType, in GamepadState state, uint targetId)
+    private readonly static XINPUT_BUTTONS[] _xboxButtonMap = new XINPUT_BUTTONS[C.XO_MAX_BTNS + 1] {
+      XINPUT_BUTTONS.NONE,
+      XINPUT_BUTTONS.A, XINPUT_BUTTONS.B, XINPUT_BUTTONS.X, XINPUT_BUTTONS.Y,
+      XINPUT_BUTTONS.LEFT_SHOULDER, XINPUT_BUTTONS.RIGHT_SHOULDER,
+      XINPUT_BUTTONS.BACK, XINPUT_BUTTONS.START, XINPUT_BUTTONS.GUIDE,
+      XINPUT_BUTTONS.LEFT_THUMB, XINPUT_BUTTONS.RIGHT_THUMB,
+      XINPUT_BUTTONS.DPAD_UP, XINPUT_BUTTONS.DPAD_DOWN, XINPUT_BUTTONS.DPAD_LEFT, XINPUT_BUTTONS.DPAD_RIGHT,
+      XINPUT_BUTTONS.DPAD_UP_RIGHT, XINPUT_BUTTONS.DPAD_DOWN_RIGHT, XINPUT_BUTTONS.DPAD_DOWN_LEFT, XINPUT_BUTTONS.DPAD_UP_LEFT,
+    };
+
+    internal static int GetXInputStateButtonValue(in GamepadState state, uint targetId)
     {
-      if (devType == DeviceType.VBDS4) {
-        if (targetId <= SDS4_MAX_BTNS)
-          return state.Buttons.HasFlag(_ps4ButtonMap[targetId]) ? 1 : 0;
-        return -2;
-      }
-      if (targetId <= XBOX_MAX_BTNS)
+      if (targetId <= C.XO_MAX_BTNS)
         return state.Buttons.HasFlag(_xboxButtonMap[targetId]) ? 1 : 0;
       return -2;
     }
+#endif  // USE_VGEN || USE_VIGEM
+
+    // DualShock4
+#if USE_VIGEM
+    internal static int GetDS4StateAxisValue(in DS4State state, HID_USAGES axis)
+    {
+      // If Axis is X,Y,RX,RY then remap range:  -32768 - 32767 ==> 0 - 32767
+      // If Triggers (Z,RZ) then remap range:           0 - 255 ==> 0 - 32767
+      return axis switch {
+        HID_USAGES.HID_USAGE_LX => ConvertRange(state.ThumbLX,      C.DS4_AXIS_MIN_VALUE, C.DS4_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_LY => ConvertRange(state.ThumbLY,      C.DS4_AXIS_MIN_VALUE, C.DS4_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_RX => ConvertRange(state.ThumbRX,      C.DS4_AXIS_MIN_VALUE, C.DS4_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_RY => ConvertRange(state.ThumbRY,      C.DS4_AXIS_MIN_VALUE, C.DS4_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_LT => ConvertRange(state.LeftTrigger,  C.DS4_AXIS_MIN_VALUE, C.DS4_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        HID_USAGES.HID_USAGE_RT => ConvertRange(state.RightTrigger, C.DS4_AXIS_MIN_VALUE, C.DS4_AXIS_MAX_VALUE, C.VJ_AXIS_MIN_VALUE, C.VJ_AXIS_MAX_VALUE, true),
+        _ => -2
+      };
+    }
+
+    internal static int GetDS4StateCPovValue(in DS4State state, uint targetId)
+    {
+      var dir = GetDS4StateDpadValue(state, targetId);
+      if (dir >= DPovDirection.None && dir <= DPovDirection.NorthWest)
+        return _dpovDirToDegrees[(int)dir + 2];
+      return -2;
+    }
+
+    private static readonly DPovDirection[] _ds4DPadToDirectionMap = new[] {
+      DPovDirection.North,        // NORTH       = 0x0000
+      DPovDirection.NorthEast,    // NORTHEAST   = 0x0001
+      DPovDirection.East,         // EAST        = 0x0002
+      DPovDirection.SouthEast,    // SOUTHEAST   = 0x0003
+      DPovDirection.South,        // SOUTH       = 0x0004
+      DPovDirection.SouthWest,    // SOUTHWEST   = 0x0005
+      DPovDirection.West,         // WEST        = 0x0006
+      DPovDirection.NorthWest,    // NORTHWEST   = 0x0007
+      DPovDirection.Center,       // NONE        = 0x0008
+    };
+
+    internal static DPovDirection GetDS4StateDpadValue(in DS4State state, uint targetId)
+    {
+      if (targetId == 0 || targetId > 1)
+        return DPovDirection.None;
+      if ((state.Buttons & (ushort)DS4_BUTTONS.DS4_DPAD_MASK) is var mask && mask <= (ushort)DS4_BUTTONS.DS4_BUTTON_DPAD_NONE)
+        return _ds4DPadToDirectionMap[(int)mask];
+      return DPovDirection.None;
+    }
+
+    private readonly static DS4_BUTTONS[] _ps4ButtonMap = new DS4_BUTTONS[C.DS4_MAX_BTNS + 1] {
+      DS4_BUTTONS.DS4_BUTTON_DPAD_NONE,
+      DS4_BUTTONS.DS4_BUTTON_CROSS, DS4_BUTTONS.DS4_BUTTON_CIRCLE, DS4_BUTTONS.DS4_BUTTON_SQUARE, DS4_BUTTONS.DS4_BUTTON_TRIANGLE,
+      DS4_BUTTONS.DS4_BUTTON_SHOULDER_LEFT, DS4_BUTTONS.DS4_BUTTON_SHOULDER_RIGHT,
+      DS4_BUTTONS.DS4_BUTTON_SHARE, DS4_BUTTONS.DS4_BUTTON_OPTIONS, (DS4_BUTTONS)((int)DS4_SPECIAL_BUTTONS.DS4_SPECIAL_BUTTON_PS | C.DS4_SPECIAL_BUTTON_FLAG),
+      DS4_BUTTONS.DS4_BUTTON_THUMB_LEFT, DS4_BUTTONS.DS4_BUTTON_THUMB_RIGHT,
+      DS4_BUTTONS.DS4_BUTTON_DPAD_NORTH, DS4_BUTTONS.DS4_BUTTON_DPAD_SOUTH, DS4_BUTTONS.DS4_BUTTON_DPAD_WEST, DS4_BUTTONS.DS4_BUTTON_DPAD_EAST,
+      DS4_BUTTONS.DS4_BUTTON_DPAD_NORTHEAST, DS4_BUTTONS.DS4_BUTTON_DPAD_SOUTHEAST, DS4_BUTTONS.DS4_BUTTON_DPAD_SOUTHWEST, DS4_BUTTONS.DS4_BUTTON_DPAD_NORTHEAST,
+      DS4_BUTTONS.DS4_BUTTON_TRIGGER_LEFT, DS4_BUTTONS.DS4_BUTTON_TRIGGER_RIGHT, (DS4_BUTTONS)((int)DS4_SPECIAL_BUTTONS.DS4_SPECIAL_BUTTON_TOUCHPAD | C.DS4_SPECIAL_BUTTON_FLAG),
+    };
+
+    internal static int GetDS4StateButtonValue(in DS4State state, uint targetId)
+    {
+      if (targetId == 0 || targetId > C.DS4_MAX_BTNS)
+        return -2;
+      DS4_BUTTONS mask = _ps4ButtonMap[targetId];
+      if (mask.HasFlag((DS4_BUTTONS)C.DS4_SPECIAL_BUTTON_FLAG))
+        return state.Special.HasFlag((DS4_SPECIAL_BUTTONS)(mask & ~(DS4_BUTTONS)C.DS4_SPECIAL_BUTTON_FLAG)) ? 1 : 0;
+      return (state.Buttons & (ushort)_ps4ButtonMap[targetId]) > 0 ? 1 : 0;
+    }
+#endif  // USE_VIGEM
 
     #endregion Joystick State Report helpers
 

@@ -14,6 +14,7 @@ namespace TJoy.Types
 {
   using JoystickState = vJoy.JoystickState;
   using XInputState = vJoy.XInputState;
+  using DualShock4State = vJoy.DualShock4State;
 
   [System.Runtime.InteropServices.StructLayout(LayoutKind.Explicit)]
   internal struct VJDState
@@ -22,6 +23,8 @@ namespace TJoy.Types
     public JoystickState vJoyState;
     [System.Runtime.InteropServices.FieldOffset(0)]
     public XInputState xInputState;
+    [System.Runtime.InteropServices.FieldOffset(0)]
+    public DualShock4State DS4State;
   }
 
   internal struct VJAxisInfo
@@ -36,7 +39,9 @@ namespace TJoy.Types
     public DeviceType deviceType;
     public uint id;
     public uint index;       // id minus device type
-    public byte ledNumber;   // for XInput
+    public int handle;       // device handle ID, from AcquireDev()
+    public byte ledNumber;   // for XBox
+    //public uint colorBar;    // for PS4
     public ushort nButtons;
     public ushort nContPov;
     public ushort nDiscPov;
