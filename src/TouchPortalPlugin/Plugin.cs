@@ -358,11 +358,10 @@ namespace TJoy.TouchPortalPlugin
       UpdateTPState(C.IDSTR_STATE_LAST_CONNECT, $"{device.Name}");
       if (device.IsXBox)
         UpdateTPState($"{C.IDSTR_GAMEPAD}.{device.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", device.LedNumber.ToString());
-      UpdateDeviceConnectors(vjid);
 
       device.ResetDevice();
+      UpdateDeviceConnectors(vjid);
       StartStatusDataTask();  // if needed
-      UpdateTPState(C.IDSTR_STATE_LAST_CONNECT, "");
       return device;
     }
 
@@ -376,7 +375,6 @@ namespace TJoy.TouchPortalPlugin
       UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, $"{oldDev.Name}");
       if (oldDev.IsXBox)
         UpdateTPState($"{C.IDSTR_GAMEPAD}.{oldDev.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", "0");
-      UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, "");
     }
 
     private void RemoveAllDevices(DeviceType devType = DeviceType.None)
@@ -395,6 +393,10 @@ namespace TJoy.TouchPortalPlugin
     private void ResetDevice(uint vjid)
     {
       Device(vjid)?.ResetDevice();
+      Task.Run(async delegate {
+        await Task.Delay(500);
+        UpdateDeviceConnectors(vjid, true);
+      });
     }
 
     private void RefreshDeviceState(uint vjid)
@@ -467,7 +469,7 @@ namespace TJoy.TouchPortalPlugin
       if (_settings.StateRefreshRate == 0 || !_devices.Any())
         return;
       if (_stateUpdateTask != null)
-        StopStatusDataTask();
+        return;
       _logger?.LogDebug("Starting state updater task...");
       _stateTaskCts = new CancellationTokenSource();
       _stateTaskShutdownToken = _stateTaskCts.Token;
@@ -703,10 +705,10 @@ namespace TJoy.TouchPortalPlugin
 
     #region Connector Updaters                ///////////////////////////////////////////////
 
-    private void UpdateDeviceConnectors(uint devId)
+    private void UpdateDeviceConnectors(uint devId, bool force = false)
     {
       // Send the current axis values to any related connector(s). Refresh the VJD state first if needed.
-      if (TryGetDevice(devId, out JoyDevice device) && RefreshDeviceStateIfNeeded(device)) {
+      if (TryGetDevice(devId, out JoyDevice device) && (force ? device.RefreshState() : RefreshDeviceStateIfNeeded(device))) {
         var state = device.StateReport();
         foreach (ConnectorTrackingData cdata in _connectorsDict.Values)
           if (cdata.devId == devId)
