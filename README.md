@@ -1,8 +1,8 @@
+[![Made for Touch Portal](https://img.shields.io/static/v1?style=flat&labelColor=5884b3&color=black&label=made%20for&message=Touch%20Portal&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAetJREFUeNp0UruqWlEQXUePb1HERi18gShYWVqJYGeXgF+Qzh9IGh8QiOmECIYkpRY21pZWFnZaqWBhUG4KjWih4msys8FLbrhZMOfsx6w1e9beWjAYBOMtx0eOGBEZzuczrtcreAyTyQSz2QxN04j3f3J84vim8+cNR4s3rKfTSUQQi8UQjUYlGYvFAtPpVIQ0u90eZrGvnHLXuOKcB1GpkkqlUCqVEA6HsVqt4HA4EAgEMJvNUC6XMRwOwWTRfhIi3e93WK1W1Go1dbTBYIDj8YhOp4NIJIJGo4FEIoF8Po/JZAKLxQIIUSIUChGrEy9Sr9cjQTKZJJvNRtlsVs3r9Tq53W6Vb+Cy0rQyQtd1OJ1O9b/dbpCTyHoul1O9z+dzGI1Gla7jFUiyGBWPx9FsNpHJZNBqtdDtdlXfAv3vZLmCB6SiJIlJhUIB/X7/cS0viXI8n8+nrBcRIblcLlSrVez3e4jrD6LsK3O8Xi8Vi0ViJ4nVid2kB3a7HY3HY2q325ROp8nv94s5d0XkSsR90OFwoOVySaPRiF6DiHs8nmdXn+QInIxKpaJclWe4Xq9fxGazAQvDYBAKfssDeMeD7zITc1gR/4M8isvlIn2+F3N+cIjMB76j4Ha7fb7bf8H7v5j0hYef/wgwAKl+FUPYXaLjAAAAAElFTkSuQmCC)](https://www.touch-portal.com/)
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/mpaperno/TJoy?include_prereleases)](https://github.com/mpaperno/TJoy/releases)
 [![Downloads](https://img.shields.io/github/downloads/mpaperno/TJoy/total.svg)](https://github.com/mpaperno/TJoy/releases)
-[![Downloads of latest release](https://img.shields.io/github/downloads/mpaperno/TJoy/latest/total)](https://github.com/mpaperno/TJoy/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL3-blue.svg)](LICENSE)
-
+[![Discord](https://img.shields.io/static/v1?style=flat&color=7289DA&&labelColor=7289DA&message=Discord%20Chat&label=&logo=discord&logoColor=white)](https://discord.gg/424r5M8cKy)
 
 # TJoy - Touch Joystick Virtual Controller Project
 
@@ -12,8 +12,8 @@
 
 This project is currently implemented as a "plugin" for the [Touch Portal](https://www.touch-portal.com) macro launcher software,
 designed for integrating with virtual gaming controllers. It currently fully supports the [vJoy](https://github.com/jshafer817/vJoy) virtual joystick driver,
-[vXBox](https://github.com/shauleiz/ScpVBus) (a.k.a _ScpVbus_) virtual XBox 360 gamepad driver,
-with support for [ViGEm Bus](https://github.com/ViGEm/ViGEmBus) (XBox 360 and DualShock 4 controller emulation) in the works.
+[ScpVBus](https://github.com/shauleiz/ScpVBus) (a.k.a _vXBox_) virtual XBox 360 gamepad driver,
+and [ViGEm Bus](https://github.com/ViGEm/ViGEmBus) (XBox 360 and DualShock 4 controller emulation) in the works.
 
 This project is in the beginning phase so please bear with me while I expand the documentation, refine features, or fix bugs.
 Your testing and feedback is important, please help!
@@ -22,8 +22,9 @@ Your testing and feedback is important, please help!
 
 * Supports all controls provided by joystick driver(s):
   * `vJoy`: Up to 16 joystick devices, each with up to 8 axes, 4 continuous (360 degree) or 4-way POV hats, and 128 buttons.
-  * `vXbox`: Up to 4 "XBox 360" type gamepads each with 4 joystick axes, 2 slider (trigger) axes, one 8-way D-Pad, and 11 other buttons.
-  * (That's 152 axes, 68 8-way D-Pads, and 2,092 possible buttons, in case you were wondering :)
+  * `ScpVBus`: Up to 4 "XBox 360" type gamepads each with 4 joystick axes, 2 slider (trigger) axes, one 8-way D-Pad, and 11 other buttons.
+  * `ViGEm Bus`: Up to 4 each of "XBox 360" and "PS DualShock 4" type gamepads with all associated controls.
+  * (That's up to 192 axes, 76 Hats/D-Pads, and 2,192 possible buttons, in case you were wondering :)
 * Use Touch Portal Actions and Sliders for all joystick controls (joystick buttons are actions only).
 * Multiple options for each joystick control. Click, hold, or toggle buttons/hats, adjust axis range and precision,
   reverse axis direction, set up custom mixes, button sequences, and much more.
@@ -34,7 +35,7 @@ Your testing and feedback is important, please help!
   of an axis and a "fine" slider which controls a smaller range of the same axis. Linked controls are
   updated in real-time.
 * Optional reporting of current joystick axis positions and button states at a configurable update frequency.
-* Connect and disconnect to joystick driver on demand (automatically or via an action) and monitor current connection status via events.
+* Connect and disconnect to joystick devices on demand (automatically or via an action) and monitor current connection status via events.
 
 
 ## Examples
@@ -48,12 +49,12 @@ and a small icon pack. These are not included with the release download, so down
 ### Supported Virtual Joystick/Gamepad Drivers
 
   * **vJoy v2.1.x** series driver for virtual joysticks. Latest signed and working version is here: [v2.1.9.1](https://github.com/jshafer817/vJoy/releases/tag/v2.1.9.1).
-    * Reports are that it works on Windows 11, but it may need a few tries to install.  I have perosnally only tested on Windows 10 21H2.
+    * Reports are that it works on Windows 11, but it may need a few tries to install.  I have personally only tested on Windows 10 21H2.
     * In theory _TJoy_ _should_ work with older 2.x versions but I haven't tested.
     * **vJoy v2.2.x series drivers are currently only partially supported.** Specifically the joystick states are not available. It does not currently support Win11 either.
       This is pending more testing and may change if it eventually gets fixed for Win11. I recommend using v2.1.9 for now.
-  * **vXBox v1.7.1.2** a.k.a `ScpVbus` by the author ov _vJoy_, for emulating up to 4 XBox-style Gamepads: [Download at https://github.com/shauleiz/ScpVBus/releases](https://github.com/shauleiz/ScpVBus/releases).
-  * Support for [ViGEm Bus](https://github.com/ViGEm/ViGEmBus) is planned for a future release.
+  * **ScpVbus v1.7.1.2** ("vXBox") for emulating up to 4 XBox 360-style Gamepads: [Download at https://github.com/shauleiz/ScpVBus/releases](https://github.com/shauleiz/ScpVBus/releases).
+  * **ViGEm Bus v1.21.442** for emulating up to 4 XBox 360 and/or PS DualShock4 style Gamepads: [Download at https://github.com/ViGEm/ViGEmBus/releases](https://github.com/ViGEm/ViGEmBus/releases).
 
 ### Requirements:
 * **One or more virtual joystick/gamepad driver** from the list of supported ones above. You **must** install driver(s) separately otherwise _TJoy_ can do nothing useful.
@@ -63,27 +64,31 @@ and a small icon pack. These are not included with the release download, so down
 ### Install:
 1. Install (or already have installed) one or more of the supported virtual joystick drivers listed above. Also of course you will need Touch Portal installed.
 2. The _TJoy_ plugin is distributed and installed as a standard Touch Portal `.tpp` plugin file. If you know how to import a plugin,
-just do that and skip to the next _Configure_ section. There is also a [short guide](https://www.touch-portal.com/blog/post/tutorials/import-plugin-guide.php) on the Touch Portal site.
+just do that and skip to the next _Configure_ section.
 3. Import the plugin:
-    1. Start _Touch Portal_ (if not already running).
-    2. Click the "gear" icon at the top and select "Import plugin..." from the menu.
+    1. Start/open _Touch Portal_.
+    2. Click the Settings "gear" icon at the top-right and select "Import plugin..." from the menu.
     3. Browse to where you downloaded this plugin's `.tpp` file and select it.
-4. Restart _Touch Portal_
-    * When prompted by _Touch Portal_ to trust the plugin startup script, select "Yes" (the source code is public!).
+    4. When prompted by _Touch Portal_ to trust the plugin startup script, select "Trust Always" or "Yes" (the source code is public!).
+       * "Trust Always" will automatically start the plugin each time Touch Portal starts.
+       * "Yes" will start the plugin this time and then prompt again each time Touch Portal starts.
+       * If you select "No" then you can still start the plugin manually from Touch Portal's _Settings -> Plug-ins_ dialog.
+4. That's it. You should now have the plugin's actions available to you in Touch Portal.
 
 ### Configure
 Several settings are available in the _Touch Portal_ _Settings_ window (select _Plug-ins_ on the left, then
-_TJoy _Touch Portal_ Plugin_ from the dropdown menu). The options are as follows:
+_TJoy Touch Portal Plugin_ from the drop-down menu). The options are as follows:
 
 * `Default Device`: The name/number of the default device configured on your system which you would like to use.
   All the action and slider controls are set to use the "Default" device by default. If you mostly use one device,
   this prevents the need to select a device for each action/slider. The default device will also be connected automatically
   at startup.
   * You can enter just a number here, for example for `vJoy` you would specify a device ID of 1-16, or for one of the gamepad
-    drivers it could be 1-4. If you have mutiple drivers installed, it will look for a vJoy joystick first, then one of the gamepad
+    drivers it could be 1-4. If you have multiple drivers installed, it will look for a vJoy joystick first, then an ScpVBus XBox360 device, and finally
+    a ViGEm XBox360.
     drivers.
   * You can also be more specific here by providing a device (driver) name as well as a number. For example: `vJoy 1` or `vXBox 4`.
-    The device names are as follows (case insensitive): `vJoy`, `vXBox`
+    The device names are as follows (case insensitive): `vJoy` (vJoy driver), `vXBox` (ScpVBus driver), `vgeXBox` and `vgeDS4` (ViGEm driver).
   * Enter zero to disable the default device feature. In this case you will need to select a specific device to use for every
     action/slider you configure.
 
@@ -115,18 +120,18 @@ like "self-centering" joystick axes. Please help by also requesting this feature
 ## Update Notifications
 
 The latest version of this software is always published on the GitHub [Releases](https://github.com/mpaperno/TJoy/releases) page.
+
 You have several options for getting **automatically notified** about new releases:
 * **If you have a GitHub account**, just open the _Watch_ menu of this repo in the top right of this page, then go to  _Custom_ and select the
 _Releases_ option, then hit _Apply_ button.
-* **If you already use an RSS/Atom feed reader**, just subscribe to: https://github.com/mpaperno/TJoy/releases.atom
-* **Use a RSS/Atom feed notification service**, either one specific for GitHub or a generic one, such as
+* If you use **Discord**, subscribe to notifications on my server channel [#tjoy-plugin](https://discord.gg/nJ7w9g2Wrr).
+* **If you already use an RSS/Atom feed reader**, just subscribe to the [feed URL](https://github.com/mpaperno/TJoy/releases.atom).
+* **Use an RSS/Atom feed notification service**, either one specific for GitHub or a generic one, such as
 (a list of services I found, I haven't necessarily tried nor do I endorse any of these):
-  * https://blogtrottr.com/  (generic RSS feed notifications, no account required, see above for feed URL to use)
+  * https://blogtrottr.com/  (generic RSS feed notifications, no account required, use the [feed URL](https://github.com/mpaperno/MSFSTouchPortalPlugin/releases.atom))
   * https://coderelease.io/  (no account required)
   * https://newreleases.io/
   * https://gitpunch.com/
-
-I will also post update notices in the Touch Portal Discord server room [#tjoy-virtual-joystick](https://discord.com/channels/548426182698467339/949596705018511430)
 
 ## Usage
 
@@ -141,7 +146,7 @@ configuration notes above.  The list of devices should be populated with what is
 joysticks configured, they will each show up as a choice (vJoy 1, vJoy 2, etc). If you have one of the gamepad drivers installed, there will
 be 4 gameapd devices to choose from.
 
-After that you will choose a button/axis/DPad for the action/slider to work on.  This list is poulated based on the device you selected,
+After that you will choose a button/axis/DPad for the action/slider to work on.  This list is populated based on the device you selected,
 and in some cases which actual controls are configured for that device (eg. vJoy devices can be configured with any number of axes, buttons, or POV hats).
 For gamepads you will always see all the available controls with appropriate names (eg. axis Lx or Ry, buttons A/X/LB, etc). Note that the gamepad
 D-Pad directions are also available as individual buttons.
@@ -160,8 +165,8 @@ D-Pad directions are also available as individual buttons.
     `Click`, `Down`, or `Up`. The D-Pad/hat returns to the center position when all other directions are released.
     * Like joystick buttons, for a "natural" button feel use this action in the `On Hold` button setup with the `Down` action.
       The POV will return to center when you release the TP button.
-    * For vJoy, if your device is configured with a "Continous" type POV, this action will still work to control the 4 available directions.
-  * A Slider can can be set up to control either the North/South buttons (`Y` axis), the East/West buttons (`X` axis), or go all the
+    * For vJoy, if your device is configured with a "Continuous" type POV, this action will still work to control the 4 available directions.
+  * A Slider can be set up to control either the North/South buttons (`Y` axis), the East/West buttons (`X` axis), or go all the
     way around the 4/8 directions, starting with either North/South and then going East/West (`YX` axis) or vice versa, East/West first
     and then North/South (`XY` axis). The POV center position is always in the middle of the slider.
     * For example a vertical slider set up for the `Y` axis would press the `North` button when pushed up from center and would press the
@@ -201,7 +206,7 @@ D-Pad directions are also available as individual buttons.
   * Again the Action options here are the same as for Axis controls where you can just set whichever value you wish the POV to move to when the action
     button is pressed or held.  The only difference is that there is a special value of `-1` which means the center/neutral hat position.  Same as with
     Axis controls, when used in `On Hold` button setup you can set where the POV hat returns to once the button is released (typically to center/neutral).
-    * This action can also control a D-Pad/D-Pov hat if that is what the device has. This is mainly for convenience with vJoy devices so either type of POV
+    * This action can also control a D-Pad/D-POV hat if that is what the device has. This is mainly for convenience with vJoy devices so either type of POV
       hat can be controlled with the same action.
   * The Sliders also work the same way as axes and you can again reverse the movement direction or set a smaller range of control for more precise movement.
     The difference here is that a slider will return to it's center point when a POV hat is in the neutral position. Currently there is no way to specify which
@@ -214,7 +219,7 @@ D-Pad directions are also available as individual buttons.
   * `Toggle`, `Connect` or `Disconnect` a specific device.
   * `Reset` all the device controls to neutral/default values (center axes, release buttons, etc).
   * `Refresh Report` to manually request a position state report (see States).
-  * `Force Unplug` a gamepad device. If it happens that a virtual gamepad doesn't get properly removed/freed (either by _TJoy_ itsself or another application)
+  * `Force Unplug` a gamepad device. If it happens that a virtual gamepad doesn't get properly removed/freed (either by _TJoy_ itself or another application)
     this is a way to force its removal and will allow _TJoy_ (or another application) to use that device again.
 * `Set Slider Position` - Sets any TP slider(s) which are connected to the specified VJD and axis/POV to a specified position (0-100).
   This is intended to compensate for the lack of any built-in way in Touch Portal to visually set a slider position to reflect some value.
@@ -255,7 +260,7 @@ These are only sent if enabled in the plugin's Settings. See notes for `Position
 When setting up your joystick controls it can of course be very useful to see the actual result in real time. `vJoy` comes with a basic monitoring application
 (_vJoy Monitor_) which is suitable for this task. There are other similar tools available online.  You can also use the Windows gaming devices control panel
 feature to check the inputs, however be aware that this only updates the display when the windows has focus (it's easy to assume your inputs aren't working
-while it's actually just the status display that's not updating). For gamepads, there aer several online checkers and a few apps available (search for example "gamepad test online").
+while it's actually just the status display that's not updating). For gamepads, there are several online checkers and a few apps available (search for example "gamepad test online").
 
 ## Troubleshooting (Log File)
 
@@ -282,8 +287,9 @@ I've only tested this whole thing in very limited conditions so far (my main Win
 Your mileage may vary, as they say!  But I'm happy to help figure out any problems and improve the plugin.
 Especially if you provide the log file...  ;-)   (see above)
 
-Open an [Issue](https://github.com/mpaperno/TJoy/issues) here on GitHub or start a
-[Discussion](https://github.com/mpaperno/TJoy/discussions).
+Open an [Issue](https://github.com/mpaperno/TJoy/issues) here on GitHub, start a
+[Discussion](https://github.com/mpaperno/TJoy/discussions) or ping me on my [Discord server](https://discord.gg/424r5M8cKy).
+
 Please provide as much detail as possible. Did I mention log files already? I like log files.
 
 
@@ -296,8 +302,8 @@ Uses a modified version of [TouchPortalSDK for C#](https://github.com/oddbear/To
 which is included in this repository and also [published here](https://github.com/mpaperno/TouchPortalSDK).
 It is used under the MIT license.
 
-Uses a modified version of [vGen](https://github.com/shauleiz/vGen) API layer for vJoy and vXBox devices,
-which is included in this repository.
+Uses a heavily modified version of [vGen](https://github.com/shauleiz/vGen) API layer for vJoy and vXBox devices,
+which is included in this repository (and is expanded to handle ViGEm devices as well).
 It is Copyright (c) 2017 Shaul Eizikovich and is used under the MIT license.
 
 Uses a slightly modified and custom built version of the v2.1.9.1 vJoy SDK from https://github.com/jshafer817/vJoy
@@ -310,8 +316,9 @@ Includes (though currently unused) 2 versions (forks) of the vJoy Interface SDK 
 v 2.2.1 from https://github.com/njz3/vJoy and v2.1.9 from https://github.com/jshafer817/vJoy
 which are Copyright (c) 2017 Shaul Eizikovich and are used under the MIT license.
 
-Joystick icon from the original vJoy Touch Portal plugin by Ivan Sørensen
-(https://github.com/grawsom/vJoyTP), used under MIT licence.
+Joystick and gamepad images from 
+[all-free-download.com](https://all-free-download.com/free-vector/download/game_consoles_vectors_59146.html), 
+"free for non commercial use only," and used under CC-BY license (as far as I can tell).
 
 
 ## Copyright, License, and Disclaimer

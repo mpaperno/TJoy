@@ -1,5 +1,14 @@
 # TJoy - Touch Joystick Virtual Controller Project
 
+## 1.1.0.0 (04-Aug-2023)
+* Added support for ViGEm Bus driver's emulated XBox 360 and DualShock 4 devices. Detection of driver is automatic.
+* Fixed that default device type specified in plugin settings wouldn't allow a device name (only numbers).
+* **CHANGED** that the configured default device (if any) is no longer automatically connected at plugin startup.
+* Added DPAD diagonal direction buttons (NE, NW, SE, SW) to XBox button choices.
+* Improved connector position updates after initial device connection and reset.
+* Improved device connection/disconnection event triggering.
+* Efficiency and performance improvements.
+
 ## 1.0.0.1 (12-Jul-2022)
 * Added "Set Slider Position" action to visually reflect the value of any variable, for example a throttle lever which is set externally.
 * Dynamic position report states are now visually sorted into categories per device (requires TP v3.0.10 or higher).
