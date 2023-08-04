@@ -45,7 +45,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(IntermediateOutputPath);$(OutDir);$(SolutionDir)lib\vJoy\v2.1.9\$(Platform)-$(Configuration);$(SolutionDir)\lib\xOutput\$(Platform)-$(Configuration)</LibraryPath>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)inc</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)inc;$(ProjectDir)..\ViGEmClient\include</IncludePath>
     <OutDir>..\..\build\$(Platform)-$(Configuration)\</OutDir>
     <IntDir>..\..\build\obj\$(Platform)-$(Configuration)\$(ProjectName)\</IntDir>
     <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
@@ -53,7 +53,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(IntermediateOutputPath);$(OutDir);$(SolutionDir)lib\vJoy\v2.1.9\$(Platform)-$(Configuration);$(SolutionDir)\lib\xOutput\$(Platform)-$(Configuration)</LibraryPath>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)inc</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)inc;$(ProjectDir)..\ViGEmClient\include</IncludePath>
     <OutDir>..\..\build\$(Platform)-$(Configuration)\</OutDir>
     <IntDir>..\..\build\obj\$(Platform)-$(Configuration)\$(ProjectName)\</IntDir>
     <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
@@ -128,9 +128,15 @@
     </ClCompile>
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="vGenInterface.cpp" />
+    <ClCompile Include="vGenPrivate.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="version.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ViGEmClient\src\ViGEmClient.vcxproj">
+      <Project>{7db06674-1f4f-464b-8e1c-172e9587f9dc}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
