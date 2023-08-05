@@ -13,10 +13,7 @@
 This project is currently implemented as a "plugin" for the [Touch Portal](https://www.touch-portal.com) macro launcher software,
 designed for integrating with virtual gaming controllers. It currently fully supports the [vJoy](https://github.com/jshafer817/vJoy) virtual joystick driver,
 [ScpVBus](https://github.com/shauleiz/ScpVBus) (a.k.a _vXBox_) virtual XBox 360 gamepad driver,
-and [ViGEm Bus](https://github.com/ViGEm/ViGEmBus) (XBox 360 and DualShock 4 controller emulation) in the works.
-
-This project is in the beginning phase so please bear with me while I expand the documentation, refine features, or fix bugs.
-Your testing and feedback is important, please help!
+and [ViGEm Bus](https://github.com/ViGEm/ViGEmBus) driver for XBox 360 and DualShock 4 controller emulation.
 
 ## Features
 
@@ -316,8 +313,8 @@ Includes (though currently unused) 2 versions (forks) of the vJoy Interface SDK 
 v 2.2.1 from https://github.com/njz3/vJoy and v2.1.9 from https://github.com/jshafer817/vJoy
 which are Copyright (c) 2017 Shaul Eizikovich and are used under the MIT license.
 
-Joystick and gamepad images from 
-[all-free-download.com](https://all-free-download.com/free-vector/download/game_consoles_vectors_59146.html), 
+Joystick and gamepad images from
+[all-free-download.com](https://all-free-download.com/free-vector/download/game_consoles_vectors_59146.html),
 "free for non commercial use only," and used under CC-BY license (as far as I can tell).
 
 
