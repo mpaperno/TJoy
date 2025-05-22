@@ -142,6 +142,8 @@ namespace TJoy.TouchPortalPlugin
       }
 
       UpdateDeviceChoices();   // send list of initial devices
+      // update running status state
+      Task.Delay(500).ContinueWith(t => UpdateTPState(C.IDSTR_STATE_PLUGIN_RUN, C.IDSTR_RUN_STARTED));
 
       // at this point the client's socket it spinning an event loop and on this thread we're just reacting to TP events via the handlers.
       // the socket/client fire event callbacks synchronously from a separate message delivery task.
@@ -155,6 +157,7 @@ namespace TJoy.TouchPortalPlugin
         return;
       _disposed = true;
       _logger.LogInformation("Shutting down...");
+      _client.StateUpdate(Util.StateIdStr(C.IDSTR_STATE_PLUGIN_RUN), C.IDSTR_RUN_STOPPED);
 
       _eventQ.Clear();       // prevent further events
       StopStatusDataTask();  // if it's running
@@ -1277,6 +1280,7 @@ namespace TJoy.TouchPortalPlugin
       _logger.LogInformation("Touch Portal Connected with: TP v{TpVersionString}, SDK v{SdkVersion}, {NAME} Plugin Entry v{PluginVersion}, {NAME} Client v{vStr} ({vNum:X})",
         message.TpVersionString, message.SdkVersion, C.PLUGIN_SHORT_NAME, message.PluginVersion, C.PLUGIN_SHORT_NAME, Util.GetProductVersionString(), Util.GetProductVersionNumber());
       _logger.LogDebug("[Info] Settings: {settings}", JsonSerializer.Serialize(message.Settings));
+      UpdateTPState(C.IDSTR_STATE_PLUGIN_RUN, C.IDSTR_RUN_STARTING);
       ProcessPluginSettings(message.Settings);
     }
 

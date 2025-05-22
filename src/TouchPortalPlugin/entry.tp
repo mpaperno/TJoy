@@ -451,6 +451,13 @@
 			],
 			"states": [
 				{
+					"id": "us.wdg.max.tpp.tjoy.state.plugin.runState",
+					"type": "choice",
+					"desc": "TJoy - Plugin Running State (stopped/starting/started)",
+					"default": "stopped",
+					"valueChoices": ["stopped","starting","started"]
+				},
+				{
 					"id": "us.wdg.max.tpp.tjoy.state.gamepad.1.led",
 					"type": "text",
 					"desc": "TJoy - Gamepad 1 LED Number (0-4)",

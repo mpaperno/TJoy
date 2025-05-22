@@ -1,4 +1,4 @@
-﻿/**********************************************************************
+/**********************************************************************
 This file is part of the TJoy project.
 Copyright Maxim Paperno; all rights reserved.
 https://github.com/mpaperno/TJoy
@@ -47,6 +47,9 @@ namespace TJoy.Constants
     internal const string IDSTR_GAMEPAD      = "gamepad";
     internal const string IDSTR_DEVICE_ID    = "devId";
     internal const string IDSTR_DEVID_DFLT   = "Default";
+    internal const string IDSTR_RUN_STOPPED  = "stopped";
+    internal const string IDSTR_RUN_STARTING = "starting";
+    internal const string IDSTR_RUN_STARTED  = "started";
 
     internal const string IDSTR_SETTING_DEF_DEVID    = "Default Device (0 to disable)";
     internal const string IDSTR_SETTING_AUTO_CONNECT = "Auto-Connect Device On Action/Slider Event (0/1)";
@@ -57,6 +60,7 @@ namespace TJoy.Constants
     internal const string IDSTR_STATE_LAST_CONNECT   = "lastConnectedDevice";
     internal const string IDSTR_STATE_LAST_DISCNCT   = "lastDisconnectedDevice";
     internal const string IDSTR_STATE_GAMEPAD_LED    = "led";
+    internal const string IDSTR_STATE_PLUGIN_RUN     =  "plugin.runState";
 
     internal const string IDSTR_ACTION_DEVICE_CTRL   = "device";
     internal const string IDSTR_ACTION_SET_POS       = "setPos";
