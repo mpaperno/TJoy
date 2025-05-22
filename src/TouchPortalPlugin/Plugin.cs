@@ -1,4 +1,4 @@
-﻿/**********************************************************************
+/**********************************************************************
 This file is part of the TJoy project.
 Copyright Maxim Paperno; all rights reserved.
 https://github.com/mpaperno/TJoy
@@ -293,6 +293,14 @@ namespace TJoy.TouchPortalPlugin
       UpdateTPChoices($"{listId[0..^C.IDSTR_DEVICE_ID.Length]}{target}", values, instanceId);
     }
 
+    void UpdateTPStateWithDelay(string stateId, string value = "", int ms = 1500)
+    {
+      Task.Run(async delegate {
+        await Task.Delay(ms);
+        UpdateTPState(stateId, value);
+      });
+    }
+
     #endregion Helpers
 
     #region VJD Interface           ///////////////////////////////////////////
@@ -362,12 +370,7 @@ namespace TJoy.TouchPortalPlugin
       device.ResetDevice();
       UpdateDeviceConnectors(vjid);
       StartStatusDataTask();  // if needed
-
-      Task.Run(async delegate {
-        await Task.Delay(1500);
-        UpdateTPState(C.IDSTR_STATE_LAST_CONNECT, "");
-      });
-
+      UpdateTPStateWithDelay(C.IDSTR_STATE_LAST_CONNECT, "");
       return device;
     }
 
@@ -381,12 +384,7 @@ namespace TJoy.TouchPortalPlugin
       UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, $"{oldDev.Name}");
       if (oldDev.IsXBox)
         UpdateTPState($"{C.IDSTR_GAMEPAD}.{oldDev.Index}.{C.IDSTR_STATE_GAMEPAD_LED}", "0");
-
-      Task.Run(async delegate {
-        await Task.Delay(1500);
-        UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, "");
-      });
-
+      UpdateTPStateWithDelay(C.IDSTR_STATE_LAST_DISCNCT, "");
     }
 
     private void RemoveAllDevices(DeviceType devType = DeviceType.None)
@@ -591,6 +589,7 @@ namespace TJoy.TouchPortalPlugin
         prevValue = -2;
         _joystickStatesDict.Add(stateId, value);
         CreateTPState(stateId, $"{C.PLUGIN_SHORT_NAME} - {devName} {devIndex} - {Util.EventTypeToControlName(ev)} {ctrlName} value", Util.GetDefaultValueForEventType(ev).ToString(), $"{devName} {devIndex}");
+        Thread.Sleep(3);  // delay for TP to process new state creation
       }
       if (prevValue != value) {
         _joystickStatesDict[stateId] = value;
