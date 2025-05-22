@@ -1,6 +1,7 @@
 {
 	"sdk": 6,
-	"version": 1010000,
+	"api": 7,
+	"version": 1010100,
 	"name": "TJoy Touch Portal Plugin",
 	"id": "us.wdg.max.tpp.tjoy",
 	"configuration": {
@@ -8,12 +9,16 @@
 		"colorLight": "#727272"
 	},
 	"plugin_start_cmd" : "%TP_PLUGIN_FOLDER%TJoy-TouchPortal-Plugin/dist/TJoyTouchPortalPlugin.exe",
+    "settingsDescription": "Virtual Joystick and Gamepad Controller for Touch Portal. For more details please visit the plugin's home page at: https://github.com/mpaperno/TJoy\nPlugin Version: 1.1.1",
 	"settings": [
 		{
 			"name": "Default Device (0 to disable)",
 			"type": "text",
 			"default": "0",
-			"readOnly": false
+			"readOnly": false,
+			"tooltip":  {
+				"body": "The name/number of the default device configured on your system which you would like to use. All the action and slider controls are set to use the \"Default\" device by default. If you mostly use one device, this prevents the need to select a device for each action/slider. The default device will also be connected automatically at startup.\n* You can enter just a number here, for example for `vJoy` you would specify a device ID of 1-16, or for one of the gamepad drivers it could be 1-4. If you have multiple drivers installed, it will look for a vJoy joystick first, then an ScpVBus XBox360 device, and finally a ViGEm XBox360.\n* You can also be more specific here by providing a device (driver) name as well as a number. For example: `vJoy 1` or `vXBox 4`. The device names are as follows (case insensitive): `vJoy` (vJoy driver), `vXBox` (ScpVBus driver), `vgeXBox` and `vgeDS4` (ViGEm driver).\n* Enter zero to disable the default device feature. In this case you will need to select a specific device to use for every action/slider you configure."
+			}
 		},
 		{
 			"name": "Auto-Connect Device On Action/Slider Event (0/1)",
@@ -21,7 +26,10 @@
 			"default": "1",
 			"minValue": 0,
 			"maxValue": 1,
-			"readOnly": false
+			"readOnly": false,
+			"tooltip": {
+				"body": "When enabled, activating an action (button) or moving a slider which controls a non-connected device will automatically try connecting to it. Set to `1` (one) to enable or `0` (zero) to disable."
+			}
 		},
 		{
 			"name": "Position State Report Update Interval (ms)",
@@ -29,7 +37,10 @@
 			"default": "0",
 			"minValue": 0,
 			"maxValue": 2147483647,
-			"readOnly": false
+			"readOnly": false,
+			"tooltip": {
+				"body": "The plugin can optionally send the current joystick axis and button values as TP States. Enter how often to send these updates, in milliseconds, or enter zero to disable them."
+			}
 		},
 		{
 			"name": "Report Raw Axis Values (0/1)",
@@ -37,13 +48,19 @@
 			"default": "0",
 			"minValue": 0,
 			"maxValue": 1,
-			"readOnly": false
+			"readOnly": false,
+			"tooltip": {
+				"body":  "When reporting is enabled (above), the axis values are by default sent as percentages. Set to `1` (one) to enable this option and get the actual raw values instead (eg. for vJoy axis it's 0-32767)."
+			}
 		},
 		{
 			"name": "Buttons To Report (max. # or range)",
 			"type": "text",
 			"default": "1 - 16",
-			"readOnly": false
+			"readOnly": false,
+			"tooltip": {
+				"body":  "vJoy can have up to 128 buttons configured.  That's a lot of states to send over if you don't need them all. Here you can specify the maximum number of buttons to report (eg. `8` to get buttons 1-8), or a range of buttons to report for, for example `32 - 64` to get only those buttons states sent over. Enter zero to not send any button states at all."
+			}
 		}
 	],
 	"categories": [
