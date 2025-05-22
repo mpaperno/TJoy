@@ -6,7 +6,8 @@
 	"id": "us.wdg.max.tpp.tjoy",
 	"configuration": {
 		"colorDark": "#173F5F",
-		"colorLight": "#727272"
+		"colorLight": "#727272",
+		"parentCategory": "input"
 	},
 	"plugin_start_cmd" : "%TP_PLUGIN_FOLDER%TJoy-TouchPortal-Plugin/dist/TJoyTouchPortalPlugin.exe",
     "settingsDescription": "Virtual Joystick and Gamepad Controller for Touch Portal. For more details please visit the plugin's home page at: https://github.com/mpaperno/TJoy\nPlugin Version: 1.1.1",
@@ -459,27 +460,31 @@
 				},
 				{
 					"id": "us.wdg.max.tpp.tjoy.state.gamepad.1.led",
-					"type": "text",
+					"type": "choice",
 					"desc": "TJoy - Gamepad 1 LED Number (0-4)",
-					"default": "0"
+					"default": "0",
+					"valueChoices": ["0","1","2","3","4"]
 				},
 				{
 					"id": "us.wdg.max.tpp.tjoy.state.gamepad.2.led",
-					"type": "text",
+					"type": "choice",
 					"desc": "TJoy - Gamepad 2 LED Number (0-4)",
-					"default": "0"
+					"default": "0",
+					"valueChoices": ["0","1","2","3","4"]
 				},
 				{
 					"id": "us.wdg.max.tpp.tjoy.state.gamepad.3.led",
-					"type": "text",
+					"type": "choice",
 					"desc": "TJoy - Gamepad 3 LED Number (0-4)",
-					"default": "0"
+					"default": "0",
+					"valueChoices": ["0","1","2","3","4"]
 				},
 				{
 					"id": "us.wdg.max.tpp.tjoy.state.gamepad.4.led",
-					"type": "text",
+					"type": "choice",
 					"desc": "TJoy - Gamepad 4 LED Number (0-4)",
-					"default": "0"
+					"default": "0",
+					"valueChoices": ["0","1","2","3","4"]
 				},
 				{
 					"id": "us.wdg.max.tpp.tjoy.state.lastConnectedDevice",
