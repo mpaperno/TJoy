@@ -83,7 +83,6 @@ _TJoy Touch Portal Plugin_ from the drop-down menu). The options are as follows:
   * You can enter just a number here, for example for `vJoy` you would specify a device ID of 1-16, or for one of the gamepad
     drivers it could be 1-4. If you have multiple drivers installed, it will look for a vJoy joystick first, then an ScpVBus XBox360 device, and finally
     a ViGEm XBox360.
-    drivers.
   * You can also be more specific here by providing a device (driver) name as well as a number. For example: `vJoy 1` or `vXBox 4`.
     The device names are as follows (case insensitive): `vJoy` (vJoy driver), `vXBox` (ScpVBus driver), `vgeXBox` and `vgeDS4` (ViGEm driver).
   * Enter zero to disable the default device feature. In this case you will need to select a specific device to use for every
