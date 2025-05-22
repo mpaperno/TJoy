@@ -767,7 +767,11 @@ namespace TJoy.TouchPortalPlugin
             value = device.ScaleInputToAxisRange(data.axis, 50.0f, instance.rangeMin, instance.rangeMax);
           value = device.ScaleAxisToInputRange(data.axis, value, instance.rangeMin, instance.rangeMax);
         }
-        _logger.LogTrace($"[UpdateRelatedConnectors] Sending update for {instance.shortId} ({data.devId}, {data.type}, {data.targetId}) with val {value}; orig val: {data.lastValue}; range: {instance.rangeMin}/{instance.rangeMax}");
+        if (value == instance.lastValue)
+          continue;
+        instance.lastValue = value;
+        _logger.LogTrace("[UpdateRelatedConnectors] Sending update for {shortId} ({devId}, {type}, {targetId}) from {currentShortId} with val {value}; orig val: {lastValue}; range: {rangeMin}/{rangeMax}",
+          instance.shortId, data.devId, data.type, data.targetId, data.currentShortId, value, data.lastValue, instance.rangeMin, instance.rangeMax);
         if (value > -1)
           UpdateTPConnector(instance.shortId, value);
       }

@@ -1,4 +1,4 @@
-﻿
+
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using TJoy.Enums;
@@ -69,11 +69,12 @@ namespace TJoy.Types
     public string valueStr;
   }
 
-  internal struct ConnectorInstanceData
+  internal class ConnectorInstanceData
   {
     public string shortId;
     public int rangeMin;
     public int rangeMax;
+    public int lastValue;
     public DPovDirection dpovDir;
   }
 
@@ -97,7 +98,8 @@ namespace TJoy.Types
       var idata = new ConnectorInstanceData {
         shortId = string.Empty,
         rangeMin = ev.rangeMin,
-        rangeMax = ev.rangeMax
+        rangeMax = ev.rangeMax,
+        lastValue = -1,
       };
       ConnectorTrackingData ret = new() {
         devId = ev.devId,
