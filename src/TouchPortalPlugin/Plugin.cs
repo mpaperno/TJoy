@@ -115,9 +115,9 @@ namespace TJoy.TouchPortalPlugin
         UInt32 dllVer = 0;
         UInt32 drivVer = 0;
         if (vJoy.DriverMatch(ref dllVer, ref drivVer))
-          _logger.LogInformation($"Version of Driver Matches DLL Version ({dllVer:X})");
+          _logger.LogInformation("Version of Driver Matches DLL Version ({dllVer:X})", dllVer);
         else
-          _logger.LogWarning($"Version of Driver ({drivVer:X}) does NOT match DLL Version ({dllVer:X})");   // hope they check this log to see why their computer exploded.... lol
+          _logger.LogWarning("Version of Driver ({drivVer:X}) does NOT match DLL Version ({dllVer:X})", drivVer, dllVer);   // hope they check this log to see why their computer exploded.... lol
 
         // subscribe to device config change events
         vJoy.RegisterRemovalCB(VJoyDeviceChangedCB, null);
@@ -154,17 +154,17 @@ namespace TJoy.TouchPortalPlugin
       if (_disposed)
         return;
       _disposed = true;
-      _logger?.LogInformation("Shutting down...");
+      _logger.LogInformation("Shutting down...");
 
       _eventQ.Clear();       // prevent further events
       StopStatusDataTask();  // if it's running
-      _logger?.LogDebug("Removing all devices...");
+      _logger.LogDebug("Removing all devices...");
       RemoveAllDevices();    // before stopping worker
       //ClearAllTpJoystickStates();  // not sure about this.. or maybe we only remove states when device disconnects
 
       vJoy.DeInit();  // release any resources (allocations for ViGEm)
 
-      _logger?.LogDebug("Shutting down the event worker...");
+      _logger.LogDebug("Shutting down the event worker...");
       _shutdownCts?.Cancel();
       var sw = Stopwatch.StartNew();
       while (_eventWorkerTask.Status == TaskStatus.Running && sw.ElapsedMilliseconds < 5000)
@@ -172,13 +172,13 @@ namespace TJoy.TouchPortalPlugin
       if (sw.ElapsedMilliseconds > 5000)
         _logger.LogWarning("Event worker timed out!");
 
-      _logger?.LogDebug("Object disposal...");
+      _logger.LogDebug("Object disposal...");
       _eventWorkerTask?.Dispose();
       _shutdownCts?.Dispose();
       _eventQueueReadyEvent?.Dispose();
       _expressionEvaluator?.Dispose();
 
-      _logger?.LogInformation("All finished, shutting down TP client now.");
+      _logger.LogInformation("All finished, shutting down TP client now.");
       if (!_settings.ClosedByTp && (_client?.IsConnected ?? false)) {
         try { _client.Close(); }  // exits the event loop keeping us alive
         catch (Exception) { /* ignore */ }
@@ -219,23 +219,23 @@ namespace TJoy.TouchPortalPlugin
     private bool CheckDeviceId(uint vjid)
     {
       if (vjid == 0) {
-        _logger.LogWarning($"Invalid device ID 0 (zero).");
+        _logger.LogWarning("Invalid device ID 0 (zero).");
         return false;
       }
       DeviceType devType = Util.DeviceIdToType(vjid);
       if (devType == DeviceType.None) {
-        _logger.LogWarning($"Uknown Device Type for Device ID {vjid}.");
+        _logger.LogWarning("Unknown Device Type for Device ID {vjId}.", vjid);
         return false;
       }
       vjid -= (uint)devType;
       if (vjid > Util.MaxDevices(devType)) {
-        _logger.LogWarning($"{Util.DeviceTypeName(devType)} Device ID {vjid} is out of range (1 - {Util.MaxDevices(devType)}).");
+        _logger.LogWarning("{devType} Device ID {vjId} is out of range (1 - {maxDevs}).", Util.DeviceTypeName(devType), vjid, Util.MaxDevices(devType));
         return false;
       }
       if ((devType == DeviceType.VJoy && !_settings.HaveVJoy) ||
           (devType == DeviceType.VXBox && !_settings.HaveVXbox) ||
           ((devType == DeviceType.VBXBox || devType == DeviceType.VBDS4) && !_settings.HaveVBus)) {
-        _logger.LogWarning($"Driver for device type {Util.DeviceTypeName(devType)} is apparently not installed.");
+        _logger.LogWarning("Driver for device type {devType} is apparently not installed.", Util.DeviceTypeName(devType));
         return false;
       }
       return true;
@@ -299,6 +299,10 @@ namespace TJoy.TouchPortalPlugin
         await Task.Delay(ms);
         UpdateTPState(stateId, value);
       });
+    }
+
+    string formatDebugActionData(ActionData data) {
+      return string.Join(", ", data.Select(d => $"'{d.Key}' = '{d.Value}'"));
     }
 
     #endregion Helpers
@@ -378,7 +382,7 @@ namespace TJoy.TouchPortalPlugin
     {
       if (!TryGetDevice(vjid, out JoyDevice oldDev))
         return;
-      _logger.LogDebug($"Relinquishing Device ID {vjid}.");
+      _logger.LogDebug("Relinquishing Device ID {vjId}.", vjid);
       oldDev.RelinquishDevice();
       _devices.Remove(vjid);
       UpdateTPState(C.IDSTR_STATE_LAST_DISCNCT, $"{oldDev.Name}");
@@ -480,7 +484,7 @@ namespace TJoy.TouchPortalPlugin
         return;
       if (_stateUpdateTask != null)
         return;
-      _logger?.LogDebug("Starting state updater task...");
+      _logger.LogDebug("Starting state updater task...");
       _stateTaskCts = new CancellationTokenSource();
       _stateTaskShutdownToken = _stateTaskCts.Token;
       _stateUpdateTask = Task.Run(VJoyCollectStateDataTask, _stateTaskShutdownToken);
@@ -491,7 +495,7 @@ namespace TJoy.TouchPortalPlugin
       if (_stateUpdateTask == null)
         return;
 
-      _logger?.LogDebug("Shutting down state updater task...");
+      _logger.LogDebug("Shutting down state updater task...");
       _stateTaskCts.Cancel();
       if (!_stateUpdateTask.IsCompleted)
         if (!_stateUpdateTask.Wait(2000, _shutdownToken))
@@ -527,7 +531,7 @@ namespace TJoy.TouchPortalPlugin
       catch (TaskCanceledException) { /* ignore... why is this an exception anyway? */ }
       catch (ObjectDisposedException) { /* ignore */ }
       catch (Exception e) {
-        _logger.LogError("Exception in joystick driver status update thread, cannot continue.", e);
+        _logger.LogError(e, "Exception in joystick driver status update thread, cannot continue.");
       }
       _logger.LogDebug("State updater task exited.");
     }
@@ -860,7 +864,7 @@ namespace TJoy.TouchPortalPlugin
               if (range.Length != 2 ||
                   !ushort.TryParse(range[0], System.Globalization.NumberStyles.Any, null, out var min) ||
                   !ushort.TryParse(range[1], System.Globalization.NumberStyles.Any, null, out var max)) {
-                _logger.LogWarning($"Could not parse Buttons to Report range string '{s.Value}'");
+                _logger.LogWarning("Could not parse Buttons to Report range string '{Value}'", s.Value);
                 continue;
               }
               _settings.MinBtnNumForState = min;
@@ -1218,7 +1222,8 @@ namespace TJoy.TouchPortalPlugin
         case ControlType.Axis:
         case ControlType.ContPov:
           ev.value = device.ScaleInputToAxisRange(ev.axis, ev.value, ev.rangeMin, ev.rangeMax, true);
-          _logger.LogDebug($"Axis Connector Event: axe: {ev.axis}; orig val: {message.Value}; new value {ev.value}; range min/max: {ev.rangeMin}/{ev.rangeMax}");
+          _logger.LogDebug("Axis Connector Event: axis: {axis}; orig val: {msgValue}; new value {evValue}; range min/max: {rangeMin}/{rangeMax}",
+            ev.axis, message.Value, ev.value, ev.rangeMin, ev.rangeMax);
           break;
 
         case ControlType.DiscPov:
@@ -1265,35 +1270,38 @@ namespace TJoy.TouchPortalPlugin
 
     public void OnInfoEvent(InfoEvent message)
     {
-      _logger?.LogInformation($"Touch Portal Connected with: TP v{message.TpVersionString}, SDK v{message.SdkVersion}, {C.PLUGIN_SHORT_NAME} Plugin Entry v{message.PluginVersion}, {C.PLUGIN_SHORT_NAME} Client v{Util.GetProductVersionString()} ({Util.GetProductVersionNumber():X})");
-      _logger?.LogDebug($"[Info] Settings: {JsonSerializer.Serialize(message.Settings)}");
+      _logger.LogInformation("Touch Portal Connected with: TP v{TpVersionString}, SDK v{SdkVersion}, {NAME} Plugin Entry v{PluginVersion}, {NAME} Client v{vStr} ({vNum:X})",
+        message.TpVersionString, message.SdkVersion, C.PLUGIN_SHORT_NAME, message.PluginVersion, C.PLUGIN_SHORT_NAME, Util.GetProductVersionString(), Util.GetProductVersionNumber());
+      _logger.LogDebug("[Info] Settings: {settings}", JsonSerializer.Serialize(message.Settings));
       ProcessPluginSettings(message.Settings);
     }
 
     public void OnSettingsEvent(SettingsEvent message)
     {
-      _logger?.LogDebug($"[OnSettings] Settings: {JsonSerializer.Serialize(message.Values)}");
+      _logger.LogDebug("[OnSettings] Settings: {settings}", JsonSerializer.Serialize(message.Values));
       ProcessPluginSettings(message.Values);
     }
 
     public void OnClosedEvent(string message) {
-      _logger?.LogInformation(message);
+      _logger.LogInformation(message);
       _settings.ClosedByTp = true;   // may not actually be true but in that case we have already quit
       Quit();
     }
 
     public void OnActionEvent(ActionEvent message)
     {
-      _logger?.LogDebug("[OnAction] PressState: {0}, ActionId: {1}, Data: '{2}'",
-          message.GetPressState(), message.ActionId, string.Join(", ", message.Data.Select(dataItem => $"'{dataItem.Key}' = '{dataItem.Value}'")));
+      _logger.LogDebug("[OnAction] PressState: {0}, ActionId: {1}, Data: '{2}'",
+          message.GetPressState(), message.ActionId, formatDebugActionData(message.Data));
       _eventQ.Enqueue(message);
       _eventQueueReadyEvent.Set();
     }
 
     public void OnConnecterChangeEvent(ConnectorChangeEvent message)
     {
-      _logger?.LogDebug("[OnConnecterChangeEvent] ConnectorId: {0}, Value: {1}, Data: '{2}'", message.ConnectorId, message.Value,
-        string.Join(", ", message.Data.Select(dataItem => $"'{dataItem.Key}' = '{dataItem.Value}'")));
+      //var mappingId = message.ConnectorId.Split('.').Last() + "|" + string.Join("|", message.Data.Select(d => d.Key + "=" + d.Value));
+      //_connectorsLongToShortMap.TryGetValue(mappingId, out var shortId);
+      _logger.LogDebug("[OnConnecterChange] ConnectorId: {connId} ({shortId}), Value: {value}, Data: '{data}'",
+        message.ConnectorId, "" /*shortId*/, message.Value, formatDebugActionData(message.Data));
       _eventQ.Enqueue(message);
       _eventQueueReadyEvent.Set();
     }
@@ -1301,7 +1309,8 @@ namespace TJoy.TouchPortalPlugin
     // convoluted malarkey to try and track which slider instances operate on the same axes, and the whole "short ID" business
     public void OnShortConnectorIdNotificationEvent(ShortConnectorIdNotificationEvent message)
     {
-      _logger.LogTrace($"[ShortConnectorIdNotificationEvent] ConnectorId: {message.ConnectorId}; shortId: {message.ShortId};");
+      _logger.LogDebug("[ShortConnectorIdNotification] ConnectorId: {ConnectorId}; shortId: {ShortId}; Data: {data}",
+        message.ConnectorId, message.ShortId, formatDebugActionData(message.Data));
       // we only use the last part of the connectorId which is meaningful
       // note that ShortConnectorIdNotificationEvent.ActualConnectorId invokes the connectorId parser.
       string connId = message.ActualConnectorId?.Split('.').Last();
@@ -1444,20 +1453,6 @@ namespace TJoy.TouchPortalPlugin
       }
     }
 
-    // Unused handlers below here.
-
-    public void OnBroadcastEvent(BroadcastEvent message) {
-      _logger.LogDebug($"[Broadcast] Event: '{message.Event}', PageName: '{message.PageName}'");
-    }
-
-    public void OnNotificationOptionClickedEvent(NotificationOptionClickedEvent message) {
-      _logger.LogDebug($"[OnNotificationOptionClickedEvent] NotificationId: '{message.NotificationId}', OptionId: '{message.OptionId}'");
-    }
-
-    public void OnUnhandledEvent(string jsonMessage) {
-      _logger.LogDebug($"Unhanded message: {jsonMessage}");
-    }
-
     #endregion TP Event Handlers
 
     #region TP Client commands                  ///////////////////////////////////////////
@@ -1479,7 +1474,7 @@ namespace TJoy.TouchPortalPlugin
       try {
         if (_client.IsConnected)
           _client.CreateState(Util.StateIdStr(id), descript, defValue, group);
-        _logger.LogDebug($"Created state '{id}' '{descript}' '{defValue}'");
+        _logger.LogDebug("Created state '{id}' '{description}' '{defValue}'", id, descript, defValue);
       }
       catch (Exception e) {
         _logger.LogError(e, "Exception in CreateTPState");
